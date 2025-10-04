@@ -1439,12 +1439,99 @@ const AuthCallback = ({ onAuth }) => {
   );
 };
 
+// Password Protection Component
+const PasswordProtection = ({ onAuthenticated }) => {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // Check password
+    if (password === 'Jaigurudev123@') {
+      localStorage.setItem('app_authenticated', 'true');
+      onAuthenticated(true);
+      toast.success('Access granted!');
+    } else {
+      setError('Incorrect password. Access denied.');
+      setPassword('');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+            <Youtube className="w-8 h-8 text-red-600" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold text-gray-900">YouTube Live Scheduler</CardTitle>
+            <p className="text-gray-600 mt-2">Enter password to access the application</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter access password"
+                className="mt-1"
+                disabled={loading}
+                autoFocus
+              />
+              {error && (
+                <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  {error}
+                </div>
+              )}
+            </div>
+            <Button 
+              type="submit"
+              disabled={loading || !password}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Verifying...
+                </div>
+              ) : (
+                'Access Application'
+              )}
+            </Button>
+          </form>
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            <p>🔒 Protected access to prevent unauthorized usage</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 // Main App component
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Check password authentication first
+    const appAuth = localStorage.getItem('app_authenticated');
+    if (appAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+
     // Check for stored auth
     const storedAuth = localStorage.getItem('youtube_auth');
     if (storedAuth) {
