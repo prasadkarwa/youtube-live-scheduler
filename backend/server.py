@@ -1209,6 +1209,7 @@ async def test_download_streaming(
     except Exception as e:
         logging.error(f"Download-stream test failed: {e}")
         return {"success": False, "error": str(e)}
+
 @api_router.get("/streaming/status")
 async def get_streaming_status(current_user: User = Depends(get_current_user)):
     """Get status of active streams"""
