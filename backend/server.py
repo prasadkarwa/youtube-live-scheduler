@@ -109,6 +109,119 @@ def get_credentials_from_token(access_token: str, refresh_token: str) -> Credent
     )
     return creds
 
+async def get_video_stream_url(video_id: str) -> str:
+    """Get the best quality stream URL for a YouTube video"""
+    try:
+        ydl_opts = {
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+            
+            # Get the best quality URL
+            if 'url' in info:
+                return info['url']
+            elif 'formats' in info and len(info['formats']) > 0:
+                # Find best format
+                formats = info['formats']
+                best_format = None
+                
+                for fmt in formats:
+                    if fmt.get('vcodec') != 'none' and fmt.get('acodec') != 'none':
+                        if not best_format or (fmt.get('height', 0) > best_format.get('height', 0)):
+                            best_format = fmt
+                
+                if best_format and 'url' in best_format:
+                    return best_format['url']
+            
+            return None
+    except Exception as e:
+        logging.error(f"Failed to get video stream URL: {e}")
+        return None
+
+def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = None):
+    """Stream a video to RTMP endpoint using FFmpeg"""
+    try:
+        # FFmpeg command to stream video to RTMP
+        cmd = [
+            'ffmpeg',
+            '-re',  # Read input at native frame rate
+            '-i', video_url,  # Input video URL
+            '-c:v', 'libx264',  # Video codec
+            '-c:a', 'aac',  # Audio codec
+            '-preset', 'veryfast',  # Encoding preset
+            '-maxrate', '3000k',  # Maximum bitrate
+            '-bufsize', '6000k',  # Buffer size
+            '-vf', 'scale=-2:720',  # Scale to 720p
+            '-g', '50',  # GOP size
+            '-f', 'flv',  # Output format
+            rtmp_url  # RTMP destination
+        ]
+        
+        # Add duration if specified
+        if duration_seconds:
+            cmd.insert(-1, '-t')
+            cmd.insert(-1, str(duration_seconds))
+        
+        logging.info(f"Starting FFmpeg stream: {' '.join(cmd)}")
+        
+        # Start FFmpeg process
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE
+        )
+        
+        return process
+        
+    except Exception as e:
+        logging.error(f"Failed to start video stream: {e}")
+        return None
+
+async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: str, start_time: datetime):
+    """Schedule a video stream to start at a specific time"""
+    try:
+        # Calculate wait time
+        now = datetime.now(timezone.utc)
+        wait_seconds = (start_time - now).total_seconds()
+        
+        if wait_seconds > 0:
+            logging.info(f"Waiting {wait_seconds} seconds to start stream for broadcast {broadcast_id}")
+            await asyncio.sleep(wait_seconds)
+        
+        # Get video stream URL
+        video_url = await get_video_stream_url(video_id)
+        if not video_url:
+            logging.error(f"Could not get video URL for {video_id}")
+            return
+        
+        # Construct RTMP URL
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        
+        # Start streaming
+        logging.info(f"Starting stream for broadcast {broadcast_id}")
+        process = stream_video_to_rtmp(video_url, rtmp_url)
+        
+        if process:
+            # Store process info for potential cleanup
+            await db.streaming_processes.insert_one({
+                "broadcast_id": broadcast_id,
+                "process_id": process.pid,
+                "started_at": datetime.now(timezone.utc),
+                "video_id": video_id
+            })
+            
+            logging.info(f"Stream started successfully for broadcast {broadcast_id}")
+        else:
+            logging.error(f"Failed to start stream for broadcast {broadcast_id}")
+            
+    except Exception as e:
+        logging.error(f"Error in scheduled video stream: {e}")
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
     token = credentials.credentials
     user = await db.users.find_one({"access_token": token})
