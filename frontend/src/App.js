@@ -1571,6 +1571,16 @@ function App() {
     );
   }
 
+  // Show password protection if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="App">
+        <Toaster position="top-right" />
+        <PasswordProtection onAuthenticated={setIsAuthenticated} />
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <Toaster position="top-right" />
@@ -1584,7 +1594,7 @@ function App() {
             path="/" 
             element={
               user ? (
-                <Dashboard user={user} onLogout={handleLogout} />
+                <Dashboard user={user} onLogout={handleAppLogout} />
               ) : (
                 <AuthPage onAuth={handleAuth} />
               )
