@@ -325,27 +325,30 @@ async def schedule_broadcast(
             try:
                 # Parse time and combine with date
                 hour, minute = map(int, time_str.split(':'))
-                scheduled_datetime = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 
-                # Ensure timezone is set
-                if scheduled_datetime.tzinfo is None:
-                    scheduled_datetime = scheduled_datetime.replace(tzinfo=timezone.utc)
+                # Create datetime in user's timezone
+                scheduled_datetime_naive = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                scheduled_datetime_user_tz = user_tz.localize(scheduled_datetime_naive)
                 
-                # Validate scheduling constraints
-                time_diff = scheduled_datetime - now
+                # Convert to UTC for API and validation
+                scheduled_datetime_utc = scheduled_datetime_user_tz.astimezone(timezone.utc)
+                
+                # Validate scheduling constraints using UTC times
+                time_diff = scheduled_datetime_utc - now_utc
                 
                 # YouTube requires at least 15 minutes in the future
                 if time_diff.total_seconds() < 900:  # 15 minutes
-                    errors.append(f"Time {time_str} is too soon. Must be at least 15 minutes in the future.")
+                    time_until = int(time_diff.total_seconds() / 60)
+                    errors.append(f"Time {time_str} ({user_tz_name}) is too soon. Only {time_until} minutes from now. Must be at least 15 minutes in the future.")
                     continue
                 
                 # YouTube doesn't allow scheduling more than 6 months in advance
                 if time_diff.days > 180:  # ~6 months
-                    errors.append(f"Time {time_str} is too far in the future. Maximum 6 months ahead.")
+                    errors.append(f"Time {time_str} ({user_tz_name}) is too far in the future. Maximum 6 months ahead.")
                     continue
                 
                 # Format datetime for YouTube API (ISO format with Z suffix)
-                scheduled_datetime_iso = scheduled_datetime.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+                scheduled_datetime_iso = scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
                 
                 # Create live broadcast
                 broadcast_body = {
