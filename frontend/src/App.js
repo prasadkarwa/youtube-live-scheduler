@@ -713,6 +713,18 @@ const StreamingDebugPanel = ({ user }) => {
           <p className="text-xs text-gray-600 mt-1">
             Get this from any YouTube URL: youtube.com/watch?v=<strong>VIDEO_ID</strong>
           </p>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <span className="text-xs text-gray-500">Quick test IDs:</span>
+            {['dQw4w9WgXcQ', 'jNQXAC9IVRw', '9bZkp7q19f0'].map(id => (
+              <button
+                key={id}
+                onClick={() => setVideoId(id)}
+                className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded"
+              >
+                {id}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
