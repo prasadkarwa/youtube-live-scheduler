@@ -332,6 +332,13 @@ async def schedule_broadcast(
                 # Localize to IST
                 scheduled_datetime_ist = user_tz.localize(scheduled_datetime_naive)
                 
+                # If the scheduled time is in the past (same day), move it to next day
+                current_ist_naive = now_ist.replace(tzinfo=None)
+                if scheduled_datetime_naive <= current_ist_naive:
+                    # Add one day
+                    scheduled_datetime_naive = scheduled_datetime_naive + timedelta(days=1)
+                    scheduled_datetime_ist = user_tz.localize(scheduled_datetime_naive)
+                
                 # Convert to UTC for YouTube API
                 scheduled_datetime_utc = scheduled_datetime_ist.astimezone(utc_tz)
                 
