@@ -224,7 +224,10 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
           data-testid="date-calendar"
         />
         <p className="text-sm text-gray-600">
-          ⏰ Broadcasts can be scheduled 15 minutes to 6 months from now
+          ⏰ Broadcasts can be scheduled 15 minutes to 6 months from now (IST timezone)
+        </p>
+        <p className="text-xs text-blue-600">
+          🌍 Current IST time: {new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
         </p>
       </div>
 
