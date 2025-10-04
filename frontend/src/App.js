@@ -406,7 +406,9 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">Scheduled Broadcasts</h3>
       <div className="space-y-3">
-        {broadcasts.map((broadcast) => (
+        {sortedBroadcasts.map((broadcast) => {
+          const upcoming = isUpcoming(broadcast.scheduled_time);
+          return (
           <Card key={broadcast.id} data-testid={`broadcast-card-${broadcast.id}`}>
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
