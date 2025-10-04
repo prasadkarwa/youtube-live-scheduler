@@ -300,86 +300,177 @@ async def schedule_broadcast(
         times_to_schedule = request.custom_times or default_times
         
         scheduled_broadcasts = []
-        selected_date = datetime.fromisoformat(request.selected_date.replace('Z', '+00:00'))
+        errors = []
+        
+        # Parse the selected date (ensure it's treated as UTC)
+        selected_date = datetime.fromisoformat(request.selected_date.replace('Z', ''))
+        if selected_date.tzinfo is None:
+            selected_date = selected_date.replace(tzinfo=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
         
         for time_str in times_to_schedule:
-            # Parse time and combine with date
-            hour, minute = map(int, time_str.split(':'))
-            scheduled_datetime = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            
-            # Create live broadcast
-            broadcast_body = {
-                'snippet': {
-                    'title': f"🔴 LIVE: {request.video_title}",
-                    'description': f"Scheduled live stream of: {request.video_title}",
-                    'scheduledStartTime': scheduled_datetime.isoformat(),
-                },
-                'status': {
-                    'privacyStatus': 'unlisted',  # Set as unlisted by default
-                    'selfDeclaredMadeForKids': False
+            try:
+                # Parse time and combine with date
+                hour, minute = map(int, time_str.split(':'))
+                scheduled_datetime = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                
+                # Ensure timezone is set
+                if scheduled_datetime.tzinfo is None:
+                    scheduled_datetime = scheduled_datetime.replace(tzinfo=timezone.utc)
+                
+                # Validate scheduling constraints
+                time_diff = scheduled_datetime - now
+                
+                # YouTube requires at least 15 minutes in the future
+                if time_diff.total_seconds() < 900:  # 15 minutes
+                    errors.append(f"Time {time_str} is too soon. Must be at least 15 minutes in the future.")
+                    continue
+                
+                # YouTube doesn't allow scheduling more than 6 months in advance
+                if time_diff.days > 180:  # ~6 months
+                    errors.append(f"Time {time_str} is too far in the future. Maximum 6 months ahead.")
+                    continue
+                
+                # Format datetime for YouTube API (ISO format with Z suffix)
+                scheduled_datetime_iso = scheduled_datetime.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+                
+                # Create live broadcast
+                broadcast_body = {
+                    'snippet': {
+                        'title': f"🔴 LIVE: {request.video_title}",
+                        'description': f"Scheduled live stream of: {request.video_title}\n\nOriginal video: https://youtube.com/watch?v={request.video_id}",
+                        'scheduledStartTime': scheduled_datetime_iso,
+                    },
+                    'status': {
+                        'privacyStatus': 'unlisted',  # Set as unlisted by default
+                        'selfDeclaredMadeForKids': False
+                    }
                 }
-            }
-            
-            broadcast_response = youtube.liveBroadcasts().insert(
-                part='snippet,status',
-                body=broadcast_body
-            ).execute()
-            
-            broadcast_id = broadcast_response['id']
-            
-            # Create live stream
-            stream_body = {
-                'snippet': {
-                    'title': f"Stream for {request.video_title} at {time_str}"
-                },
-                'cdn': {
-                    'frameRate': '30fps',
-                    'ingestionType': 'rtmp',
-                    'resolution': '720p'
+                
+                broadcast_response = youtube.liveBroadcasts().insert(
+                    part='snippet,status',
+                    body=broadcast_body
+                ).execute()
+                
+                broadcast_id = broadcast_response['id']
+                
+                # Create live stream
+                stream_body = {
+                    'snippet': {
+                        'title': f"Stream for {request.video_title} at {time_str}"
+                    },
+                    'cdn': {
+                        'frameRate': '30fps',
+                        'ingestionType': 'rtmp',
+                        'resolution': '720p'
+                    }
                 }
-            }
-            
-            stream_response = youtube.liveStreams().insert(
-                part='snippet,cdn',
-                body=stream_body
-            ).execute()
-            
-            stream_id = stream_response['id']
-            
-            # Bind stream to broadcast
-            youtube.liveBroadcasts().bind(
-                part='id',
-                id=broadcast_id,
-                streamId=stream_id
-            ).execute()
-            
-            # Store in database
-            scheduled_broadcast = ScheduledBroadcast(
-                user_id=user.id,
-                video_id=request.video_id,
-                video_title=request.video_title,
-                broadcast_id=broadcast_id,
-                stream_id=stream_id,
-                scheduled_time=scheduled_datetime,
-                status='created',
-                stream_url=stream_response['cdn']['ingestionInfo']['streamName'],
-                watch_url=f"https://www.youtube.com/watch?v={broadcast_id}"
-            )
-            
-            await db.scheduled_broadcasts.insert_one(scheduled_broadcast.dict())
-            scheduled_broadcasts.append(scheduled_broadcast)
+                
+                stream_response = youtube.liveStreams().insert(
+                    part='snippet,cdn',
+                    body=stream_body
+                ).execute()
+                
+                stream_id = stream_response['id']
+                stream_name = stream_response['cdn']['ingestionInfo']['streamName']
+                
+                # Bind stream to broadcast
+                youtube.liveBroadcasts().bind(
+                    part='id',
+                    id=broadcast_id,
+                    streamId=stream_id
+                ).execute()
+                
+                # Store in database
+                scheduled_broadcast = ScheduledBroadcast(
+                    user_id=user.id,
+                    video_id=request.video_id,
+                    video_title=request.video_title,
+                    broadcast_id=broadcast_id,
+                    stream_id=stream_id,
+                    scheduled_time=scheduled_datetime,
+                    status='created',
+                    stream_url=stream_name,
+                    watch_url=f"https://www.youtube.com/watch?v={broadcast_id}"
+                )
+                
+                await db.scheduled_broadcasts.insert_one(scheduled_broadcast.dict())
+                scheduled_broadcasts.append(scheduled_broadcast)
+                
+            except HttpError as youtube_error:
+                error_details = str(youtube_error)
+                if "invalidScheduledStartTime" in error_details:
+                    errors.append(f"Time {time_str}: Invalid scheduling time. YouTube requires broadcasts to be scheduled between 15 minutes and 6 months from now.")
+                else:
+                    errors.append(f"Time {time_str}: YouTube API error - {youtube_error}")
+                logging.error(f"YouTube API error for time {time_str}: {youtube_error}")
+            except Exception as slot_error:
+                errors.append(f"Time {time_str}: Failed to schedule - {str(slot_error)}")
+                logging.error(f"Error scheduling time {time_str}: {slot_error}")
+        
+        # Prepare response
+        response_message = f"Successfully scheduled {len(scheduled_broadcasts)} broadcasts"
+        if errors:
+            response_message += f". {len(errors)} failed: " + "; ".join(errors)
         
         return {
-            "message": f"Successfully scheduled {len(scheduled_broadcasts)} broadcasts",
-            "broadcasts": scheduled_broadcasts
+            "message": response_message,
+            "broadcasts": scheduled_broadcasts,
+            "errors": errors,
+            "success_count": len(scheduled_broadcasts),
+            "error_count": len(errors)
         }
         
-    except HttpError as e:
-        logging.error(f"YouTube API error: {e}")
-        raise HTTPException(status_code=400, detail=f"YouTube API error: {e}")
     except Exception as e:
         logging.error(f"Failed to schedule broadcasts: {e}")
-        raise HTTPException(status_code=500, detail="Failed to schedule broadcasts")
+        raise HTTPException(status_code=500, detail=f"Failed to schedule broadcasts: {str(e)}")
+
+@api_router.get("/validate-schedule")
+async def validate_schedule_time(date: str, time: str):
+    """Validate if a schedule time is acceptable"""
+    try:
+        # Parse the datetime
+        selected_date = datetime.fromisoformat(date.replace('Z', ''))
+        if selected_date.tzinfo is None:
+            selected_date = selected_date.replace(tzinfo=timezone.utc)
+        
+        hour, minute = map(int, time.split(':'))
+        scheduled_datetime = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        
+        if scheduled_datetime.tzinfo is None:
+            scheduled_datetime = scheduled_datetime.replace(tzinfo=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
+        time_diff = scheduled_datetime - now
+        
+        validation_result = {
+            "valid": True,
+            "message": "Schedule time is valid",
+            "scheduled_time": scheduled_datetime.isoformat(),
+            "minutes_from_now": int(time_diff.total_seconds() / 60)
+        }
+        
+        # Check constraints
+        if time_diff.total_seconds() < 900:  # 15 minutes
+            validation_result["valid"] = False
+            validation_result["message"] = "Must be at least 15 minutes in the future"
+        elif time_diff.days > 180:  # ~6 months
+            validation_result["valid"] = False
+            validation_result["message"] = "Cannot schedule more than 6 months in advance"
+        elif scheduled_datetime <= now:
+            validation_result["valid"] = False
+            validation_result["message"] = "Schedule time must be in the future"
+        
+        return validation_result
+        
+    except Exception as e:
+        return {
+            "valid": False,
+            "message": f"Invalid date/time format: {str(e)}",
+            "scheduled_time": None,
+            "minutes_from_now": 0
+        }
 
 @api_router.get("/broadcasts")
 async def get_user_broadcasts(current_user: User = Depends(get_current_user)):
