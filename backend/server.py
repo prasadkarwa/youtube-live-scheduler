@@ -371,7 +371,6 @@ async def schedule_uploaded_video_stream(broadcast_id: str, stream_key: str, fil
         
         cmd = [
             'ffmpeg', '-y',
-            '-stream_loop', '-1',  # Loop the video
             '-re',  # Read at native frame rate
             '-i', file_path,
             '-c:v', 'libx264',
