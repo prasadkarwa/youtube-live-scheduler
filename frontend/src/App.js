@@ -409,7 +409,11 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
         {sortedBroadcasts.map((broadcast) => {
           const upcoming = isUpcoming(broadcast.scheduled_time);
           return (
-          <Card key={broadcast.id} data-testid={`broadcast-card-${broadcast.id}`}>
+          <Card 
+            key={broadcast.id} 
+            data-testid={`broadcast-card-${broadcast.id}`}
+            className={upcoming ? '' : 'opacity-70 border-gray-200'}
+          >
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
