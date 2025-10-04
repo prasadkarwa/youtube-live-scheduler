@@ -1431,6 +1431,57 @@ async def get_uploaded_videos(current_user: User = Depends(get_current_user)):
         logging.error(f"Failed to get uploaded videos: {e}")
         raise HTTPException(status_code=500, detail="Failed to get uploaded videos")
 
+@api_router.delete("/uploaded-videos/{file_id}")
+async def delete_uploaded_video(file_id: str, current_user: User = Depends(get_current_user)):
+    """Delete an uploaded video"""
+    try:
+        import os
+        
+        # Get video info
+        video_info = await db.uploaded_videos.find_one({"id": file_id, "user_id": current_user.id})
+        if not video_info:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        # Delete physical file
+        if os.path.exists(video_info['file_path']):
+            os.remove(video_info['file_path'])
+        
+        # Delete from database
+        await db.uploaded_videos.delete_one({"id": file_id, "user_id": current_user.id})
+        
+        return {"message": "Video deleted successfully", "filename": video_info["original_filename"]}
+        
+    except Exception as e:
+        logging.error(f"Failed to delete video: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete video")
+
+@api_router.put("/uploaded-videos/{file_id}/title")
+async def update_video_title(
+    file_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update custom title for uploaded video"""
+    try:
+        new_title = request.get("title", "").strip()
+        if not new_title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+        
+        # Update in database
+        result = await db.uploaded_videos.update_one(
+            {"id": file_id, "user_id": current_user.id},
+            {"$set": {"custom_title": new_title}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        return {"message": "Title updated successfully", "title": new_title}
+        
+    except Exception as e:
+        logging.error(f"Failed to update title: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update title")
+
 @api_router.post("/schedule/uploaded-video")
 async def schedule_uploaded_video(
     request: dict,
