@@ -652,9 +652,9 @@ async def validate_schedule_time(date: str, time: str):
         }
         
         # Check constraints
-        if time_diff.total_seconds() < 900:  # 15 minutes
+        if time_diff.total_seconds() < 180:  # 3 minutes (reduced for testing)
             validation_result["valid"] = False
-            validation_result["message"] = "Must be at least 15 minutes in the future"
+            validation_result["message"] = "Must be at least 3 minutes in the future"
         elif time_diff.days > 180:  # ~6 months
             validation_result["valid"] = False
             validation_result["message"] = "Cannot schedule more than 6 months in advance"
