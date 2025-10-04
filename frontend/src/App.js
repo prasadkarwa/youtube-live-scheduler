@@ -665,6 +665,153 @@ const Dashboard = ({ user, onLogout }) => {
   );
 };
 
+// Video upload panel
+const VideoUploadPanel = ({ user }) => {
+  const [uploading, setUploading] = useState(false);
+  const [uploadedVideos, setUploadedVideos] = useState([]);
+  const [fetchingVideos, setFetchingVideos] = useState(true);
+
+  useEffect(() => {
+    fetchUploadedVideos();
+  }, []);
+
+  const fetchUploadedVideos = async () => {
+    try {
+      const response = await axios.get(`${API}/uploaded-videos`, {
+        headers: { Authorization: `Bearer ${user.access_token}` }
+      });
+      setUploadedVideos(response.data.videos || []);
+    } catch (error) {
+      console.error('Failed to fetch uploaded videos:', error);
+      toast.error('Failed to load uploaded videos');
+    } finally {
+      setFetchingVideos(false);
+    }
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024 * 1024) { // 500MB limit
+      toast.error('File too large. Maximum size is 500MB.');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(`${API}/upload-video`, formData, {
+        headers: {
+          Authorization: `Bearer ${user.access_token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`Upload progress: ${percentCompleted}%`);
+        }
+      });
+
+      toast.success(`Video uploaded successfully! ${response.data.size_mb}MB`);
+      fetchUploadedVideos(); // Refresh list
+      event.target.value = ''; // Clear input
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error(error.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Upload Section */}
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+        <div className="text-center">
+          <VideoIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <div className="mt-4">
+            <label htmlFor="video-upload" className="cursor-pointer">
+              <span className="mt-2 block text-sm font-medium text-gray-900">
+                Upload your video files
+              </span>
+              <span className="mt-1 block text-sm text-gray-600">
+                MP4, AVI, MOV, MKV, WMV up to 500MB
+              </span>
+            </label>
+            <input
+              id="video-upload"
+              type="file"
+              className="hidden"
+              accept=".mp4,.avi,.mov,.mkv,.wmv"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </div>
+          <Button
+            className="mt-4"
+            onClick={() => document.getElementById('video-upload').click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Uploading...
+              </div>
+            ) : (
+              'Choose Video File'
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Uploaded Videos List */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Uploaded Videos</h3>
+        {fetchingVideos ? (
+          <div className="text-center py-8">
+            <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading videos...</p>
+          </div>
+        ) : uploadedVideos.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <VideoIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p>No videos uploaded yet</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {uploadedVideos.map((video) => (
+              <Card key={video.id} className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{video.original_filename}</h4>
+                    <p className="text-sm text-gray-600">
+                      {Math.round(video.file_size / 1024 / 1024)}MB • 
+                      Uploaded {new Date(video.upload_time).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      toast.success('Copy this File ID to use in scheduling: ' + video.id);
+                      navigator.clipboard.writeText(video.id);
+                    }}
+                  >
+                    Use in Schedule
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Streaming debug panel
 const StreamingDebugPanel = ({ user }) => {
   const [videoId, setVideoId] = useState('');
