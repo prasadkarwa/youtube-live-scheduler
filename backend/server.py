@@ -783,6 +783,32 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
+@api_router.get("/test/video/{video_id}")
+async def test_video_extraction(video_id: str, current_user: User = Depends(get_current_user)):
+    """Test video URL extraction only"""
+    try:
+        logging.info(f"Testing video extraction for: {video_id}")
+        video_url, extraction_info = await get_video_stream_url(video_id)
+        
+        if video_url:
+            return {
+                "success": True,
+                "video_id": video_id,
+                "video_url": video_url[:150] + "..." if len(video_url) > 150 else video_url,
+                "extraction_method": extraction_info,
+                "full_youtube_url": f"https://www.youtube.com/watch?v={video_id}"
+            }
+        else:
+            return {
+                "success": False,
+                "video_id": video_id,
+                "error": "Video extraction failed",
+                "extraction_error": extraction_info,
+                "full_youtube_url": f"https://www.youtube.com/watch?v={video_id}"
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e), "video_id": video_id}
+
 @api_router.post("/test/stream")
 async def test_streaming(
     video_id: str,
