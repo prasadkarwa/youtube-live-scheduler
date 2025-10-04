@@ -650,6 +650,159 @@ const Dashboard = ({ user, onLogout }) => {
   );
 };
 
+// Streaming debug panel
+const StreamingDebugPanel = ({ user }) => {
+  const [videoId, setVideoId] = useState('');
+  const [streamKey, setStreamKey] = useState('');
+  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState(false);
+
+  const testStreaming = async () => {
+    if (!videoId || !streamKey) {
+      toast.error('Please enter both Video ID and Stream Key');
+      return;
+    }
+
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await axios.post(`${API}/test/stream`, null, {
+        params: { video_id: videoId, stream_key: streamKey },
+        headers: { Authorization: `Bearer ${user.access_token}` }
+      });
+
+      setTestResult(response.data);
+      
+      if (response.data.success) {
+        toast.success('Streaming test completed successfully!');
+      } else {
+        toast.error('Streaming test failed. Check debug info below.');
+      }
+    } catch (error) {
+      console.error('Test streaming failed:', error);
+      setTestResult({ 
+        success: false, 
+        error: error.response?.data?.detail || 'Test failed',
+        message: 'Request failed'
+      });
+      toast.error('Test request failed');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h4 className="text-yellow-800 font-medium">Debug Streaming Pipeline</h4>
+        <p className="text-sm text-yellow-700 mt-1">
+          Test if video streaming to YouTube Live works correctly
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="video-id">YouTube Video ID</Label>
+          <Input
+            id="video-id"
+            placeholder="Enter YouTube video ID (e.g., dQw4w9WgXcQ)"
+            value={videoId}
+            onChange={(e) => setVideoId(e.target.value)}
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            Get this from any YouTube URL: youtube.com/watch?v=<strong>VIDEO_ID</strong>
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="stream-key">Stream Key</Label>
+          <Input
+            id="stream-key"
+            type="password"
+            placeholder="Enter YouTube Live stream key"
+            value={streamKey}
+            onChange={(e) => setStreamKey(e.target.value)}
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            Get this from YouTube Studio → Go Live → Stream Settings
+          </p>
+        </div>
+
+        <Button
+          onClick={testStreaming}
+          disabled={testing || !videoId || !streamKey}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+        >
+          {testing ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Testing Stream...
+            </div>
+          ) : (
+            'Test Streaming (30 seconds)'
+          )}
+        </Button>
+      </div>
+
+      {testResult && (
+        <div className={`border rounded-lg p-4 ${testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <h4 className={`font-medium ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+            Test Result: {testResult.success ? 'Success' : 'Failed'}
+          </h4>
+          
+          {testResult.message && (
+            <p className={`text-sm mt-1 ${testResult.success ? 'text-green-700' : 'text-red-700'}`}>
+              {testResult.message}
+            </p>
+          )}
+
+          {testResult.video_url && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-700">Video URL:</p>
+              <p className="text-xs text-gray-600 break-all">{testResult.video_url}</p>
+            </div>
+          )}
+
+          {testResult.rtmp_url && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-700">RTMP URL:</p>
+              <p className="text-xs text-gray-600 break-all">{testResult.rtmp_url}</p>
+            </div>
+          )}
+
+          {testResult.error && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-red-700">Error:</p>
+              <p className="text-xs text-red-600">{testResult.error}</p>
+            </div>
+          )}
+
+          {testResult.stderr && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-red-700">FFmpeg Error Output:</p>
+              <pre className="text-xs text-red-600 bg-red-100 p-2 rounded mt-1 overflow-auto">
+                {testResult.stderr}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="bg-gray-50 border rounded-lg p-4">
+        <h4 className="font-medium text-gray-800">How to use this:</h4>
+        <ol className="text-sm text-gray-600 mt-2 space-y-1 list-decimal list-inside">
+          <li>Go to YouTube Studio → Create → Go Live</li>
+          <li>Set up a live stream and copy the Stream Key</li>
+          <li>Enter any YouTube video ID you want to test with</li>
+          <li>Click "Test Streaming" to verify the pipeline works</li>
+          <li>Check YouTube Studio to see if the stream appears</li>
+        </ol>
+      </div>
+    </div>
+  );
+};
+
 // Auth callback handler
 const AuthCallback = ({ onAuth }) => {
   useEffect(() => {
