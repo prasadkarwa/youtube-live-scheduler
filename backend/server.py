@@ -348,6 +348,9 @@ def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = 
 
 async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: str, start_time: datetime):
     """Schedule a video stream to start at a specific time"""
+    import tempfile
+    import os
+    
     try:
         # Calculate wait time
         now = datetime.now(timezone.utc)
@@ -357,18 +360,62 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
             logging.info(f"Waiting {wait_seconds} seconds to start stream for broadcast {broadcast_id}")
             await asyncio.sleep(wait_seconds)
         
-        # Get video stream URL
-        video_url, extraction_info = await get_video_stream_url(video_id)
-        if not video_url:
-            logging.error(f"Could not get video URL for {video_id}: {extraction_info}")
+        logging.info(f"Starting scheduled stream for broadcast {broadcast_id}")
+        
+        # Use download+stream method since it's more reliable
+        temp_dir = tempfile.mkdtemp()
+        temp_file = os.path.join(temp_dir, f"{video_id}_{broadcast_id}.mp4")
+        
+        # Download the video
+        ydl_opts = {
+            'format': 'best[ext=mp4][height<=720]/best[height<=720]',
+            'outtmpl': temp_file,
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+        
+        if not os.path.exists(temp_file):
+            logging.error(f"Failed to download video {video_id} for broadcast {broadcast_id}")
             return
         
-        # Construct RTMP URL
+        # Stream the downloaded file
         rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
         
-        # Start streaming
-        logging.info(f"Starting stream for broadcast {broadcast_id}")
-        process = stream_video_to_rtmp(video_url, rtmp_url)
+        cmd = [
+            'ffmpeg', '-y',
+            '-stream_loop', '-1',  # Loop the video
+            '-re',  # Read at native frame rate
+            '-i', temp_file,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-preset', 'veryfast',
+            '-tune', 'zerolatency',
+            '-pix_fmt', 'yuv420p',
+            '-maxrate', '2500k',
+            '-bufsize', '5000k',
+            '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+            '-r', '30',
+            '-g', '60',
+            '-keyint_min', '30',
+            '-sc_threshold', '0',
+            '-b:v', '2000k',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-f', 'flv',
+            '-flvflags', 'no_duration_filesize',
+            rtmp_url
+        ]
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
+        )
         
         if process:
             # Store process info for potential cleanup
@@ -376,12 +423,30 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
                 "broadcast_id": broadcast_id,
                 "process_id": process.pid,
                 "started_at": datetime.now(timezone.utc),
-                "video_id": video_id
+                "video_id": video_id,
+                "temp_file": temp_file,
+                "temp_dir": temp_dir,
+                "method": "download_and_stream"
             })
             
-            logging.info(f"Stream started successfully for broadcast {broadcast_id}")
+            logging.info(f"Download+Stream started successfully for broadcast {broadcast_id}")
+            
+            # Schedule cleanup (after a reasonable time)
+            def cleanup_later():
+                time.sleep(3600)  # Wait 1 hour before cleanup
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                    if os.path.exists(temp_dir):
+                        os.rmdir(temp_dir)
+                    logging.info(f"Cleaned up temp files for broadcast {broadcast_id}")
+                except:
+                    pass
+            
+            threading.Thread(target=cleanup_later, daemon=True).start()
+            
         else:
-            logging.error(f"Failed to start stream for broadcast {broadcast_id}")
+            logging.error(f"Failed to start download+stream for broadcast {broadcast_id}")
             
     except Exception as e:
         logging.error(f"Error in scheduled video stream: {e}")
