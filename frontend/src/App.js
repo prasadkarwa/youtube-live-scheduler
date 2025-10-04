@@ -587,48 +587,41 @@ const Dashboard = ({ user, onLogout }) => {
           </TabsList>
 
           <TabsContent value="schedule" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Video Selection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <VideoIcon className="w-5 h-5" />
-                    Your Videos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {fetchingVideos ? (
-                    <div className="text-center py-8">
-                      <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-gray-600">Loading your videos...</p>
-                    </div>
-                  ) : (
-                    <VideoSelector
-                      videos={videos}
-                      onVideoSelect={setSelectedVideo}
-                      selectedVideo={selectedVideo}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Scheduling Form */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5" />
-                    Schedule Live Streams
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScheduleForm
-                    selectedVideo={selectedVideo}
-                    onSchedule={handleSchedule}
-                    loading={loading}
-                  />
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <VideoIcon className="w-5 h-5" />
+                  Recommended: Use Upload System
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <VideoIcon className="w-8 h-8 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Upload Your Videos for Best Results</h3>
+                    <p className="text-gray-600 mt-2">
+                      For reliable streaming of your 1-2GB video files, use the Upload System for guaranteed performance.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      // Switch to upload tab
+                      document.querySelector('[data-testid="upload-tab"]').click();
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Go to Upload Videos →
+                  </Button>
+                  <div className="mt-4 text-xs text-gray-500">
+                    <p>✅ Supports up to 2GB files</p>
+                    <p>✅ No YouTube API limitations</p>
+                    <p>✅ 100% reliable streaming</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="upload">
