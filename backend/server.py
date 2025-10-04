@@ -977,9 +977,16 @@ async def validate_schedule_time(date: str, time: str):
 async def get_user_broadcasts(current_user: User = Depends(get_current_user)):
     """Get user's scheduled broadcasts"""
     try:
-        broadcasts = await db.scheduled_broadcasts.find(
+        broadcasts_cursor = db.scheduled_broadcasts.find(
             {"user_id": current_user.id}
-        ).sort("scheduled_time", 1).to_list(100)
+        ).sort("scheduled_time", 1)
+        
+        broadcasts = []
+        async for broadcast in broadcasts_cursor:
+            # Remove MongoDB ObjectId to avoid serialization issues
+            if "_id" in broadcast:
+                del broadcast["_id"]
+            broadcasts.append(broadcast)
         
         return {"broadcasts": broadcasts}
     
