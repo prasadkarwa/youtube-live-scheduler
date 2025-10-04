@@ -1063,41 +1063,68 @@ const VideoUploadPanel = ({ user }) => {
     <div className="space-y-6">
       {/* Upload Section */}
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-        <div className="text-center">
-          <VideoIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <div className="mt-4">
-            <label htmlFor="video-upload" className="cursor-pointer">
-              <span className="mt-2 block text-sm font-medium text-gray-900">
-                Upload your video files
-              </span>
-              <span className="mt-1 block text-sm text-gray-600">
-                MP4, AVI, MOV, MKV, WMV up to 2GB • 97GB total storage available
-              </span>
-            </label>
-            <input
-              id="video-upload"
-              type="file"
-              className="hidden"
-              accept=".mp4,.avi,.mov,.mkv,.wmv"
-              onChange={handleFileUpload}
+        {!uploading ? (
+          <div className="text-center">
+            <VideoIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <div className="mt-4">
+              <label htmlFor="video-upload" className="cursor-pointer">
+                <span className="mt-2 block text-sm font-medium text-gray-900">
+                  Upload your video files
+                </span>
+                <span className="mt-1 block text-sm text-gray-600">
+                  MP4, AVI, MOV, MKV, WMV up to 2GB • 97GB total storage available
+                </span>
+              </label>
+              <input
+                id="video-upload"
+                type="file"
+                className="hidden"
+                accept=".mp4,.avi,.mov,.mkv,.wmv"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </div>
+            <Button
+              className="mt-4"
+              onClick={() => document.getElementById('video-upload').click()}
               disabled={uploading}
-            />
+            >
+              Choose Video File
+            </Button>
           </div>
-          <Button
-            className="mt-4"
-            onClick={() => document.getElementById('video-upload').click()}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Uploading...
-              </div>
-            ) : (
-              'Choose Video File'
-            )}
-          </Button>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-center">
+              <VideoIcon className="mx-auto h-12 w-12 text-red-500 animate-pulse" />
+              <h3 className="mt-2 text-lg font-semibold text-gray-900">Uploading Video</h3>
+              <p className="text-sm text-gray-600">Please wait while your video is being uploaded...</p>
+            </div>
+            
+            <UploadProgress 
+              progress={uploadProgress}
+              uploadedBytes={uploadedBytes}
+              totalBytes={totalBytes}
+              speed={uploadSpeed}
+            />
+            
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Note: This would cancel the upload, but axios doesn't have built-in cancel for this setup
+                  // For now, just show it's not recommended
+                  if (confirm('Are you sure you want to cancel the upload? You will lose progress.')) {
+                    window.location.reload();
+                  }
+                }}
+                className="text-gray-600"
+              >
+                Cancel Upload
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Uploaded Videos List */}
