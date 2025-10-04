@@ -85,6 +85,7 @@ class ScheduleRequest(BaseModel):
     video_title: str
     selected_date: str
     custom_times: Optional[List[str]] = None
+    timezone: Optional[str] = "UTC"  # User's timezone
 
 class AuthCallbackRequest(BaseModel):
     code: str
