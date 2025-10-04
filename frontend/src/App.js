@@ -819,6 +819,27 @@ const StreamingDebugPanel = ({ user }) => {
             </div>
           )}
 
+          {testResult.extraction_error && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-red-700">Extraction Error:</p>
+              <p className="text-xs text-red-600">{testResult.extraction_error}</p>
+            </div>
+          )}
+
+          {testResult.extraction_method && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-green-700">Extraction Method:</p>
+              <p className="text-xs text-green-600">{testResult.extraction_method}</p>
+            </div>
+          )}
+
+          {testResult.debug_info && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-700">Debug Info:</p>
+              <p className="text-xs text-gray-600">{testResult.debug_info}</p>
+            </div>
+          )}
+
           {testResult.stderr && (
             <div className="mt-2">
               <p className="text-xs font-medium text-red-700">FFmpeg Error Output:</p>
