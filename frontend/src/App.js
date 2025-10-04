@@ -119,29 +119,39 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
 
   const validateScheduleTimes = () => {
     const errors = [];
-    const now = new Date();
+    
+    // Get current time in IST
+    const nowIST = new Date().toLocaleString("en-CA", {timeZone: "Asia/Kolkata"});
+    const now = new Date(nowIST);
+    
     const times = showCustomTimes ? customTimes : ['05:55', '06:55', '07:55', '16:55', '17:55'];
     
-    // Check if selected date is in the past
-    if (selectedDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-      errors.push('Selected date cannot be in the past');
+    // Check if selected date is in the past (IST date)
+    const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    if (selectedDateOnly < todayIST) {
+      errors.push('Selected date cannot be in the past (IST timezone)');
       return errors;
     }
 
     times.forEach((timeStr, index) => {
       const [hour, minute] = timeStr.split(':').map(Number);
+      
+      // Create schedule time in IST
       const scheduleDateTime = new Date(selectedDate);
       scheduleDateTime.setHours(hour, minute, 0, 0);
-
+      
+      // Convert current IST time for comparison
       const timeDiff = scheduleDateTime - now;
       const minutesFromNow = timeDiff / (1000 * 60);
 
       if (minutesFromNow < 15) {
-        errors.push(`Time ${timeStr}: Must be at least 15 minutes in the future`);
+        errors.push(`Time ${timeStr} IST: Must be at least 15 minutes in the future (${Math.round(minutesFromNow)} mins from now)`);
       }
 
       if (timeDiff > 180 * 24 * 60 * 60 * 1000) { // 180 days in milliseconds
-        errors.push(`Time ${timeStr}: Cannot schedule more than 6 months in advance`);
+        errors.push(`Time ${timeStr} IST: Cannot schedule more than 6 months in advance`);
       }
     });
 
