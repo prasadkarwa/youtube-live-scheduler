@@ -346,6 +346,80 @@ def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = 
         logging.error(f"Failed to start video stream: {e}")
         return None
 
+async def schedule_uploaded_video_stream(broadcast_id: str, stream_key: str, file_path: str, start_time: datetime):
+    """Schedule streaming of an uploaded video file"""
+    import os
+    
+    try:
+        # Calculate wait time
+        now = datetime.now(timezone.utc)
+        wait_seconds = (start_time - now).total_seconds()
+        
+        if wait_seconds > 0:
+            logging.info(f"Waiting {wait_seconds} seconds to start uploaded video stream for broadcast {broadcast_id}")
+            await asyncio.sleep(wait_seconds)
+        
+        logging.info(f"Starting uploaded video stream for broadcast {broadcast_id}")
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.error(f"Uploaded file not found: {file_path}")
+            return
+        
+        # Stream the uploaded file
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        
+        cmd = [
+            'ffmpeg', '-y',
+            '-stream_loop', '-1',  # Loop the video
+            '-re',  # Read at native frame rate
+            '-i', file_path,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-preset', 'veryfast',
+            '-tune', 'zerolatency',
+            '-pix_fmt', 'yuv420p',
+            '-maxrate', '2500k',
+            '-bufsize', '5000k',
+            '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+            '-r', '30',
+            '-g', '60',
+            '-keyint_min', '30',
+            '-sc_threshold', '0',
+            '-b:v', '2000k',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-f', 'flv',
+            '-flvflags', 'no_duration_filesize',
+            rtmp_url
+        ]
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        if process:
+            # Store process info
+            await db.streaming_processes.insert_one({
+                "broadcast_id": broadcast_id,
+                "process_id": process.pid,
+                "started_at": datetime.now(timezone.utc).isoformat(),
+                "file_path": file_path,
+                "method": "uploaded_file_stream"
+            })
+            
+            logging.info(f"Uploaded video stream started successfully for broadcast {broadcast_id}")
+        else:
+            logging.error(f"Failed to start uploaded video stream for broadcast {broadcast_id}")
+            
+    except Exception as e:
+        logging.error(f"Error in uploaded video stream: {e}")
+
 async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: str, start_time: datetime):
     """Schedule a video stream to start at a specific time"""
     import tempfile
