@@ -361,7 +361,6 @@ async def schedule_broadcast(
                 scheduled_datetime_iso = scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
                 
                 # Format time for display (12-hour format)
-                time_12hr = scheduled_datetime_ist.strftime('%I:%M %p')
                 time_display = scheduled_datetime_ist.strftime('%I%p').lower().replace(':00', '').replace('0', '')  # e.g., "5am", "6pm"
                 
                 # Create broadcast title with time
