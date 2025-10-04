@@ -152,8 +152,8 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
       const timeDiff = scheduleDateTime - nowIST;
       const minutesFromNow = timeDiff / (1000 * 60);
 
-      if (minutesFromNow < 15) {
-        errors.push(`Time ${timeStr} IST: Must be at least 15 minutes in the future (${Math.round(minutesFromNow)} mins from now)`);
+      if (minutesFromNow < 3) {
+        errors.push(`Time ${timeStr} IST: Must be at least 3 minutes in the future (${Math.round(minutesFromNow)} mins from now)`);
       }
 
       if (timeDiff > 180 * 24 * 60 * 60 * 1000) { // 180 days in milliseconds
