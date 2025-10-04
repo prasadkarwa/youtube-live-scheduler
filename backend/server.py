@@ -291,6 +291,8 @@ async def schedule_broadcast(
     background_tasks: BackgroundTasks = None
 ):
     """Schedule live broadcasts for a video"""
+    import pytz
+    
     try:
         user = await refresh_token_if_needed(current_user)
         creds = get_credentials_from_token(user.access_token, user.refresh_token)
@@ -303,62 +305,63 @@ async def schedule_broadcast(
         scheduled_broadcasts = []
         errors = []
         
-        # Parse the selected date and handle timezone
-        import pytz
+        # Set user timezone to India (IST)
+        user_tz = pytz.timezone("Asia/Kolkata")
+        utc_tz = pytz.timezone("UTC")
         
-        # Get user's timezone (default to India/Kolkata if not specified)
-        user_tz_name = request.timezone or "Asia/Kolkata"
-        try:
-            user_tz = pytz.timezone(user_tz_name)
-        except:
-            user_tz = pytz.timezone("Asia/Kolkata")  # Fallback to IST
-        
-        # Parse the selected date as naive datetime (user's local date)
-        selected_date = datetime.fromisoformat(request.selected_date.replace('Z', ''))
+        # Parse the selected date (assume user local date)
+        selected_date_str = request.selected_date.replace('Z', '')
+        selected_date = datetime.fromisoformat(selected_date_str)
         if selected_date.tzinfo is not None:
             selected_date = selected_date.replace(tzinfo=None)
         
-        now_utc = datetime.now(timezone.utc)
-        now_user_tz = now_utc.astimezone(user_tz)
+        # Get current time in both timezones for reference
+        now_utc = datetime.now(utc_tz)
+        now_ist = now_utc.astimezone(user_tz)
+        
+        logging.info(f"Current UTC time: {now_utc}")
+        logging.info(f"Current IST time: {now_ist}")
+        logging.info(f"Selected date: {selected_date}")
         
         for time_str in times_to_schedule:
             try:
-                # Parse time and combine with date
+                # Parse time and combine with date in IST
                 hour, minute = map(int, time_str.split(':'))
-                
-                # Create datetime in user's timezone
                 scheduled_datetime_naive = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                scheduled_datetime_user_tz = user_tz.localize(scheduled_datetime_naive)
                 
-                # Convert to UTC for API and validation
-                scheduled_datetime_utc = scheduled_datetime_user_tz.astimezone(timezone.utc)
+                # Localize to IST
+                scheduled_datetime_ist = user_tz.localize(scheduled_datetime_naive)
                 
-                # Validate scheduling constraints using UTC times
+                # Convert to UTC for YouTube API
+                scheduled_datetime_utc = scheduled_datetime_ist.astimezone(utc_tz)
+                
+                logging.info(f"Scheduling {time_str} IST -> {scheduled_datetime_utc} UTC")
+                
+                # Calculate time difference from now
                 time_diff = scheduled_datetime_utc - now_utc
+                minutes_from_now = time_diff.total_seconds() / 60
                 
-                # YouTube requires at least 15 minutes in the future
+                # Validate scheduling constraints
                 if time_diff.total_seconds() < 900:  # 15 minutes
-                    time_until = int(time_diff.total_seconds() / 60)
-                    errors.append(f"Time {time_str} ({user_tz_name}) is too soon. Only {time_until} minutes from now. Must be at least 15 minutes in the future.")
+                    errors.append(f"Time {time_str} IST is too soon ({int(minutes_from_now)} minutes from now). Must be at least 15 minutes in the future.")
                     continue
                 
-                # YouTube doesn't allow scheduling more than 6 months in advance
                 if time_diff.days > 180:  # ~6 months
-                    errors.append(f"Time {time_str} ({user_tz_name}) is too far in the future. Maximum 6 months ahead.")
+                    errors.append(f"Time {time_str} IST is too far in the future. Maximum 6 months ahead.")
                     continue
                 
-                # Format datetime for YouTube API (ISO format with Z suffix)
+                # Format datetime for YouTube API
                 scheduled_datetime_iso = scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
                 
                 # Create live broadcast
                 broadcast_body = {
                     'snippet': {
                         'title': f"🔴 LIVE: {request.video_title}",
-                        'description': f"Scheduled live stream of: {request.video_title}\n\nOriginal video: https://youtube.com/watch?v={request.video_id}",
+                        'description': f"Scheduled live stream of: {request.video_title}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %H:%M IST')}\nOriginal video: https://youtube.com/watch?v={request.video_id}",
                         'scheduledStartTime': scheduled_datetime_iso,
                     },
                     'status': {
-                        'privacyStatus': 'unlisted',  # Set as unlisted by default
+                        'privacyStatus': 'unlisted',
                         'selfDeclaredMadeForKids': False
                     }
                 }
@@ -373,7 +376,7 @@ async def schedule_broadcast(
                 # Create live stream
                 stream_body = {
                     'snippet': {
-                        'title': f"Stream for {request.video_title} at {time_str}"
+                        'title': f"Stream for {request.video_title} at {time_str} IST"
                     },
                     'cdn': {
                         'frameRate': '30fps',
@@ -397,14 +400,14 @@ async def schedule_broadcast(
                     streamId=stream_id
                 ).execute()
                 
-                # Store in database (using UTC time)
+                # Store in database
                 scheduled_broadcast = ScheduledBroadcast(
                     user_id=user.id,
                     video_id=request.video_id,
                     video_title=request.video_title,
                     broadcast_id=broadcast_id,
                     stream_id=stream_id,
-                    scheduled_time=scheduled_datetime_utc,
+                    scheduled_time=scheduled_datetime_utc,  # Store UTC time
                     status='created',
                     stream_url=stream_name,
                     watch_url=f"https://www.youtube.com/watch?v={broadcast_id}"
@@ -413,28 +416,35 @@ async def schedule_broadcast(
                 await db.scheduled_broadcasts.insert_one(scheduled_broadcast.dict())
                 scheduled_broadcasts.append(scheduled_broadcast)
                 
+                logging.info(f"Successfully scheduled broadcast for {time_str} IST ({scheduled_datetime_utc} UTC)")
+                
             except HttpError as youtube_error:
                 error_details = str(youtube_error)
                 if "invalidScheduledStartTime" in error_details:
-                    errors.append(f"Time {time_str}: Invalid scheduling time. YouTube requires broadcasts to be scheduled between 15 minutes and 6 months from now.")
+                    errors.append(f"Time {time_str} IST: YouTube rejected the scheduling time. Try a time further in the future.")
                 else:
-                    errors.append(f"Time {time_str}: YouTube API error - {youtube_error}")
-                logging.error(f"YouTube API error for time {time_str}: {youtube_error}")
+                    errors.append(f"Time {time_str} IST: YouTube API error - {str(youtube_error)}")
+                logging.error(f"YouTube API error for {time_str}: {youtube_error}")
             except Exception as slot_error:
-                errors.append(f"Time {time_str}: Failed to schedule - {str(slot_error)}")
-                logging.error(f"Error scheduling time {time_str}: {slot_error}")
+                errors.append(f"Time {time_str} IST: Failed to schedule - {str(slot_error)}")
+                logging.error(f"Error scheduling {time_str}: {slot_error}")
         
         # Prepare response
-        response_message = f"Successfully scheduled {len(scheduled_broadcasts)} broadcasts"
+        response_message = f"Successfully scheduled {len(scheduled_broadcasts)} broadcasts for IST timezone"
         if errors:
-            response_message += f". {len(errors)} failed: " + "; ".join(errors)
+            response_message += f". {len(errors)} failed"
         
         return {
             "message": response_message,
             "broadcasts": scheduled_broadcasts,
             "errors": errors,
             "success_count": len(scheduled_broadcasts),
-            "error_count": len(errors)
+            "error_count": len(errors),
+            "timezone_info": {
+                "user_timezone": "Asia/Kolkata (IST)",
+                "current_ist_time": now_ist.strftime('%Y-%m-%d %H:%M:%S IST'),
+                "current_utc_time": now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')
+            }
         }
         
     except Exception as e:
