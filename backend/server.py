@@ -148,24 +148,43 @@ async def get_video_stream_url(video_id: str) -> tuple[str, str]:
                     formats = info['formats']
                     logging.info(f"Found {len(formats)} formats")
                     
-                    # Try to find a good format with both video and audio
+                    # Prioritize direct video URLs over HLS manifests
+                    # First try: mp4 with both video and audio
                     for fmt in formats:
-                        if (fmt.get('vcodec') != 'none' and 
+                        if (fmt.get('ext') == 'mp4' and
+                            fmt.get('vcodec') != 'none' and 
                             fmt.get('acodec') != 'none' and 
                             fmt.get('url') and
+                            not fmt.get('url', '').endswith('.m3u8') and
                             fmt.get('height', 0) <= 720):
                             stream_url = fmt['url']
-                            extraction_method = f"format_selection_height_{fmt.get('height', 'unknown')}"
-                            logging.info(f"Selected format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                            extraction_method = f"mp4_direct_{fmt.get('height', 'unknown')}p"
+                            logging.info(f"Selected MP4 format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
                             break
                     
-                    # Fallback: any format with URL
+                    # Second try: any non-HLS format with video and audio
                     if not stream_url:
                         for fmt in formats:
-                            if fmt.get('url'):
+                            if (fmt.get('vcodec') != 'none' and 
+                                fmt.get('acodec') != 'none' and 
+                                fmt.get('url') and
+                                not fmt.get('url', '').endswith('.m3u8') and
+                                fmt.get('height', 0) <= 720):
                                 stream_url = fmt['url']
-                                extraction_method = f"fallback_format_{fmt.get('format_id', 'unknown')}"
-                                logging.info(f"Using fallback format: {fmt.get('format_id')}")
+                                extraction_method = f"direct_video_{fmt.get('ext', 'unknown')}_{fmt.get('height', 'unknown')}p"
+                                logging.info(f"Selected direct format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                                break
+                    
+                    # Third try: HLS manifest as last resort
+                    if not stream_url:
+                        for fmt in formats:
+                            if (fmt.get('vcodec') != 'none' and 
+                                fmt.get('acodec') != 'none' and 
+                                fmt.get('url') and
+                                fmt.get('height', 0) <= 720):
+                                stream_url = fmt['url']
+                                extraction_method = f"hls_manifest_{fmt.get('height', 'unknown')}p"
+                                logging.info(f"Using HLS format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
                                 break
                 
                 # Method 3: Try manifest URL if available
