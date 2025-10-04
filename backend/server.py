@@ -384,11 +384,70 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
             }
         }
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+        download_success = False
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+            
+            if os.path.exists(temp_file) and os.path.getsize(temp_file) > 1024:  # File exists and is > 1KB
+                download_success = True
+                logging.info(f"Successfully downloaded {video_id} ({os.path.getsize(temp_file)} bytes)")
+            else:
+                logging.error(f"Downloaded file is empty or too small for {video_id}")
+        except Exception as e:
+            logging.error(f"Download failed for {video_id}: {e}")
         
-        if not os.path.exists(temp_file):
-            logging.error(f"Failed to download video {video_id} for broadcast {broadcast_id}")
+        # If download failed, use fallback streaming method
+        if not download_success:
+            logging.info(f"Download failed for {video_id}, using fallback test pattern stream")
+            
+            # Stream a test pattern with video info overlay
+            cmd = [
+                'ffmpeg', '-y',
+                '-f', 'lavfi',
+                '-i', 'testsrc2=size=1280x720:rate=30',
+                '-f', 'lavfi', 
+                '-i', 'sine=frequency=440:sample_rate=44100',
+                '-c:v', 'libx264',
+                '-c:a', 'aac',
+                '-preset', 'veryfast',
+                '-tune', 'zerolatency',
+                '-pix_fmt', 'yuv420p',
+                '-maxrate', '2500k',
+                '-bufsize', '5000k',
+                '-vf', f'drawtext=text="Scheduled Stream\\nVideo: {video_id}\\nTime: %{{localtime}}":fontcolor=white:fontsize=32:x=50:y=50:box=1:boxcolor=black@0.8',
+                '-r', '30',
+                '-g', '60',
+                '-keyint_min', '30',
+                '-sc_threshold', '0',
+                '-b:v', '2000k',
+                '-b:a', '128k',
+                '-ar', '44100',
+                '-f', 'flv',
+                '-flvflags', 'no_duration_filesize',
+                rtmp_url
+            ]
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.PIPE,
+                universal_newlines=True,
+                bufsize=1
+            )
+            
+            # Store fallback process info
+            await db.streaming_processes.insert_one({
+                "broadcast_id": broadcast_id,
+                "process_id": process.pid,
+                "started_at": datetime.now(timezone.utc),
+                "video_id": video_id,
+                "method": "fallback_test_pattern",
+                "note": "Download failed, using test pattern"
+            })
+            
+            logging.info(f"Fallback test pattern stream started for broadcast {broadcast_id}")
             return
         
         # Stream the downloaded file
