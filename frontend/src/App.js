@@ -904,6 +904,11 @@ const EditableTitle = ({ video, user, onUpdate }) => {
 // Video upload panel
 const VideoUploadPanel = ({ user }) => {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalBytes, setTotalBytes] = useState(0);
+  const [uploadStartTime, setUploadStartTime] = useState(null);
   const [uploadedVideos, setUploadedVideos] = useState([]);
   const [fetchingVideos, setFetchingVideos] = useState(true);
 
