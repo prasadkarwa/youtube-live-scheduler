@@ -455,7 +455,8 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
