@@ -951,9 +951,10 @@ async def schedule_broadcast(
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 
-                await db.scheduled_broadcasts.insert_one(broadcast_data)
-                scheduled_broadcasts.append(broadcast_data)
-                scheduled_broadcasts.append(scheduled_broadcast)
+                result = await db.scheduled_broadcasts.insert_one(broadcast_data)
+                # Remove any MongoDB ObjectId before adding to response
+                clean_broadcast_data = {k: v for k, v in broadcast_data.items() if k != '_id'}
+                scheduled_broadcasts.append(clean_broadcast_data)
                 
                 # Schedule the video streaming
                 asyncio.create_task(
