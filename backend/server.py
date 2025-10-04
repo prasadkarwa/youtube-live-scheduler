@@ -1087,6 +1087,128 @@ async def test_simple_streaming(
         logging.error(f"Simple streaming test failed: {e}")
         return {"success": False, "error": str(e)}
 
+@api_router.post("/test/download-stream")
+async def test_download_streaming(
+    video_id: str,
+    stream_key: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Test streaming by downloading video first, then streaming local file"""
+    try:
+        import tempfile
+        import os
+        
+        logging.info(f"Testing download-then-stream for video {video_id}")
+        
+        # Create temporary directory
+        temp_dir = tempfile.mkdtemp()
+        temp_file = os.path.join(temp_dir, f"{video_id}.mp4")
+        
+        # Download the video using yt-dlp
+        ydl_opts = {
+            'format': 'best[ext=mp4][height<=720]/best[height<=720]',
+            'outtmpl': temp_file,
+            'quiet': False,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+        
+        # Check if file was downloaded
+        if not os.path.exists(temp_file):
+            return {"success": False, "error": "Video download failed"}
+        
+        file_size = os.path.getsize(temp_file)
+        logging.info(f"Downloaded video: {temp_file} ({file_size} bytes)")
+        
+        # Stream the local file
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        
+        cmd = [
+            'ffmpeg', '-y',
+            '-re',  # Read at native frame rate
+            '-i', temp_file,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-preset', 'veryfast',
+            '-tune', 'zerolatency',
+            '-pix_fmt', 'yuv420p',
+            '-maxrate', '2500k',
+            '-bufsize', '5000k',
+            '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+            '-r', '30',
+            '-g', '60',
+            '-keyint_min', '30',
+            '-sc_threshold', '0',
+            '-b:v', '2000k',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-f', 'flv',
+            '-flvflags', 'no_duration_filesize',
+            '-t', '60',  # Stream for 60 seconds
+            rtmp_url
+        ]
+        
+        logging.info(f"Streaming local file: {' '.join(cmd)}")
+        
+        # Start FFmpeg process
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        # Wait and check if process is running
+        time.sleep(3)
+        
+        if process.poll() is None:
+            logging.info("Download-and-stream started successfully")
+            
+            # Schedule cleanup after streaming
+            def cleanup():
+                time.sleep(70)  # Wait for stream to finish
+                try:
+                    os.remove(temp_file)
+                    os.rmdir(temp_dir)
+                    logging.info(f"Cleaned up temporary files: {temp_file}")
+                except:
+                    pass
+            
+            threading.Thread(target=cleanup, daemon=True).start()
+            
+            return {
+                "success": True,
+                "message": "Download-and-stream started successfully",
+                "rtmp_url": rtmp_url,
+                "process_id": process.pid,
+                "temp_file": temp_file,
+                "file_size_mb": round(file_size / 1024 / 1024, 2),
+                "stream_duration": "60 seconds"
+            }
+        else:
+            # Process failed
+            stdout, stderr = process.communicate()
+            
+            # Cleanup
+            try:
+                os.remove(temp_file)
+                os.rmdir(temp_dir)
+            except:
+                pass
+            
+            return {
+                "success": False,
+                "error": "FFmpeg process failed",
+                "output": stdout[-500:] if stdout else "No output",
+                "rtmp_url": rtmp_url
+            }
+            
+    except Exception as e:
+        logging.error(f"Download-stream test failed: {e}")
+        return {"success": False, "error": str(e)}
 @api_router.get("/streaming/status")
 async def get_streaming_status(current_user: User = Depends(get_current_user)):
     """Get status of active streams"""
