@@ -109,38 +109,91 @@ def get_credentials_from_token(access_token: str, refresh_token: str) -> Credent
     )
     return creds
 
-async def get_video_stream_url(video_id: str) -> str:
+async def get_video_stream_url(video_id: str) -> tuple[str, str]:
     """Get the best quality stream URL for a YouTube video"""
     try:
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
-            'quiet': True,
-            'no_warnings': True,
+            'format': 'best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best',
+            'quiet': False,  # Enable verbose output for debugging
+            'no_warnings': False,
+            'extractaudio': False,
+            'audioformat': 'aac',
+            'outtmpl': '%(id)s.%(ext)s',
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
+        video_url = f'https://www.youtube.com/watch?v={video_id}'
+        logging.info(f"Attempting to extract URL from: {video_url}")
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
-            
-            # Get the best quality URL
-            if 'url' in info:
-                return info['url']
-            elif 'formats' in info and len(info['formats']) > 0:
-                # Find best format
-                formats = info['formats']
-                best_format = None
+            try:
+                info = ydl.extract_info(video_url, download=False)
+                logging.info(f"Successfully extracted info for video {video_id}")
                 
-                for fmt in formats:
-                    if fmt.get('vcodec') != 'none' and fmt.get('acodec') != 'none':
-                        if not best_format or (fmt.get('height', 0) > best_format.get('height', 0)):
-                            best_format = fmt
+                # Try multiple extraction methods
+                stream_url = None
+                extraction_method = "unknown"
                 
-                if best_format and 'url' in best_format:
-                    return best_format['url']
-            
-            return None
+                # Method 1: Direct URL
+                if 'url' in info:
+                    stream_url = info['url']
+                    extraction_method = "direct_url"
+                    logging.info(f"Found direct URL: {stream_url[:100]}...")
+                
+                # Method 2: Best format from formats list
+                elif 'formats' in info and len(info['formats']) > 0:
+                    formats = info['formats']
+                    logging.info(f"Found {len(formats)} formats")
+                    
+                    # Try to find a good format with both video and audio
+                    for fmt in formats:
+                        if (fmt.get('vcodec') != 'none' and 
+                            fmt.get('acodec') != 'none' and 
+                            fmt.get('url') and
+                            fmt.get('height', 0) <= 720):
+                            stream_url = fmt['url']
+                            extraction_method = f"format_selection_height_{fmt.get('height', 'unknown')}"
+                            logging.info(f"Selected format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                            break
+                    
+                    # Fallback: any format with URL
+                    if not stream_url:
+                        for fmt in formats:
+                            if fmt.get('url'):
+                                stream_url = fmt['url']
+                                extraction_method = f"fallback_format_{fmt.get('format_id', 'unknown')}"
+                                logging.info(f"Using fallback format: {fmt.get('format_id')}")
+                                break
+                
+                # Method 3: Try manifest URL if available
+                elif 'manifest_url' in info:
+                    stream_url = info['manifest_url']
+                    extraction_method = "manifest_url"
+                    logging.info(f"Using manifest URL: {stream_url[:100]}...")
+                
+                if stream_url:
+                    return stream_url, f"Success via {extraction_method}"
+                else:
+                    error_msg = "No suitable stream URL found in extracted info"
+                    logging.error(error_msg)
+                    return None, error_msg
+                    
+            except yt_dlp.DownloadError as e:
+                error_msg = f"yt-dlp download error: {str(e)}"
+                logging.error(error_msg)
+                return None, error_msg
+                
+            except Exception as e:
+                error_msg = f"yt-dlp extraction error: {str(e)}"
+                logging.error(error_msg)
+                return None, error_msg
+                
     except Exception as e:
-        logging.error(f"Failed to get video stream URL: {e}")
-        return None
+        error_msg = f"General error in video extraction: {str(e)}"
+        logging.error(error_msg)
+        return None, error_msg
 
 def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = None):
     """Stream a video to RTMP endpoint using FFmpeg"""
