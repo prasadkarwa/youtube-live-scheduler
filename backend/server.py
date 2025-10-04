@@ -1233,11 +1233,15 @@ async def test_download_streaming(
         temp_dir = tempfile.mkdtemp()
         temp_file = os.path.join(temp_dir, f"{video_id}.mp4")
         
-        # Download the video using yt-dlp
+        # Download the video using yt-dlp with robust settings
         ydl_opts = {
             'format': 'best[ext=mp4][height<=720]/best[height<=720]',
             'outtmpl': temp_file,
             'quiet': False,
+            'retries': 2,
+            'fragment_retries': 2,
+            'socket_timeout': 20,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
