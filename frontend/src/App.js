@@ -1556,6 +1556,13 @@ function App() {
     localStorage.removeItem('youtube_auth');
   };
 
+  const handleAppLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('youtube_auth');
+    localStorage.removeItem('app_authenticated');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
