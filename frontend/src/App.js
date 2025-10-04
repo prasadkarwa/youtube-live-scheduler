@@ -729,20 +729,61 @@ const StreamingDebugPanel = ({ user }) => {
           </p>
         </div>
 
-        <Button
-          onClick={testStreaming}
-          disabled={testing || !videoId || !streamKey}
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          {testing ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Testing Stream...
-            </div>
-          ) : (
-            'Test Streaming (30 seconds)'
-          )}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            onClick={async () => {
+              if (!videoId) {
+                toast.error('Please enter a Video ID');
+                return;
+              }
+              
+              setTesting(true);
+              try {
+                const response = await axios.get(`${API}/test/video/${videoId}`, {
+                  headers: { Authorization: `Bearer ${user.access_token}` }
+                });
+                
+                setTestResult(response.data);
+                if (response.data.success) {
+                  toast.success('Video extraction successful!');
+                } else {
+                  toast.error('Video extraction failed');
+                }
+              } catch (error) {
+                setTestResult({ success: false, error: 'Request failed', video_id: videoId });
+                toast.error('Test request failed');
+              } finally {
+                setTesting(false);
+              }
+            }}
+            disabled={testing || !videoId}
+            className="w-full bg-green-600 hover:bg-green-700"
+          >
+            {testing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Testing...
+              </div>
+            ) : (
+              'Test Video Extraction Only'
+            )}
+          </Button>
+
+          <Button
+            onClick={testStreaming}
+            disabled={testing || !videoId || !streamKey}
+            className="w-full bg-blue-600 hover:bg-blue-700"
+          >
+            {testing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Testing Stream...
+              </div>
+            ) : (
+              'Test Full Streaming (30 seconds)'
+            )}
+          </Button>
+        </div>
       </div>
 
       {testResult && (
