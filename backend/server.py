@@ -708,6 +708,68 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
+@api_router.get("/streaming/status")
+async def get_streaming_status(current_user: User = Depends(get_current_user)):
+    """Get status of active streams"""
+    try:
+        # Get all streaming processes for user's broadcasts
+        user_broadcasts = await db.scheduled_broadcasts.find({"user_id": current_user.id}).to_list(100)
+        broadcast_ids = [b["broadcast_id"] for b in user_broadcasts]
+        
+        active_streams = await db.streaming_processes.find(
+            {"broadcast_id": {"$in": broadcast_ids}}
+        ).to_list(100)
+        
+        # Check which processes are still running
+        running_streams = []
+        for stream in active_streams:
+            try:
+                # Check if process is still running
+                process = subprocess.Popen(['ps', '-p', str(stream['process_id'])], 
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output, _ = process.communicate()
+                
+                if str(stream['process_id']) in output.decode():
+                    running_streams.append({
+                        "broadcast_id": stream["broadcast_id"],
+                        "video_id": stream["video_id"],
+                        "started_at": stream["started_at"],
+                        "status": "streaming"
+                    })
+            except:
+                pass
+        
+        return {"active_streams": running_streams}
+        
+    except Exception as e:
+        logging.error(f"Failed to get streaming status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get streaming status")
+
+@api_router.post("/streaming/stop/{broadcast_id}")
+async def stop_stream(broadcast_id: str, current_user: User = Depends(get_current_user)):
+    """Manually stop a streaming process"""
+    try:
+        # Find the streaming process
+        stream_process = await db.streaming_processes.find_one({"broadcast_id": broadcast_id})
+        
+        if not stream_process:
+            raise HTTPException(status_code=404, detail="Stream process not found")
+        
+        # Kill the FFmpeg process
+        try:
+            subprocess.run(['kill', str(stream_process['process_id'])], check=True)
+            
+            # Remove from database
+            await db.streaming_processes.delete_one({"broadcast_id": broadcast_id})
+            
+            return {"message": "Stream stopped successfully"}
+        except subprocess.CalledProcessError:
+            return {"message": "Stream process was already stopped"}
+        
+    except Exception as e:
+        logging.error(f"Failed to stop stream: {e}")
+        raise HTTPException(status_code=500, detail="Failed to stop stream")
+
 # Include the router in the main app
 app.include_router(api_router)
 
