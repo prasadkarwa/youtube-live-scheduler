@@ -555,9 +555,10 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Tabs defaultValue="schedule" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto">
             <TabsTrigger value="schedule" data-testid="schedule-tab">Schedule Broadcasts</TabsTrigger>
             <TabsTrigger value="manage" data-testid="manage-tab">Manage Broadcasts</TabsTrigger>
+            <TabsTrigger value="debug" data-testid="debug-tab">Debug Stream</TabsTrigger>
           </TabsList>
 
           <TabsContent value="schedule" className="space-y-6">
