@@ -864,19 +864,22 @@ async def schedule_broadcast(
                 ).execute()
                 
                 # Store in database
-                scheduled_broadcast = ScheduledBroadcast(
-                    user_id=user.id,
-                    video_id=request.video_id,
-                    video_title=request.video_title,
-                    broadcast_id=broadcast_id,
-                    stream_id=stream_id,
-                    scheduled_time=scheduled_datetime_utc,  # Store UTC time
-                    status='created',
-                    stream_url=stream_name,
-                    watch_url=f"https://www.youtube.com/watch?v={broadcast_id}"
-                )
+                broadcast_data = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user.id,
+                    "video_id": request.video_id,
+                    "video_title": request.video_title,
+                    "broadcast_id": broadcast_id,
+                    "stream_id": stream_id,
+                    "scheduled_time": scheduled_datetime_utc.isoformat(),
+                    "status": 'created',
+                    "stream_url": stream_name,
+                    "watch_url": f"https://www.youtube.com/watch?v={broadcast_id}",
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
                 
-                await db.scheduled_broadcasts.insert_one(scheduled_broadcast.dict())
+                await db.scheduled_broadcasts.insert_one(broadcast_data)
+                scheduled_broadcasts.append(broadcast_data)
                 scheduled_broadcasts.append(scheduled_broadcast)
                 
                 # Schedule the video streaming
