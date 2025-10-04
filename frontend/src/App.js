@@ -457,12 +457,32 @@ const Dashboard = ({ user, onLogout }) => {
         headers: { Authorization: `Bearer ${user.access_token}` }
       });
       
-      toast.success(response.data.message);
-      fetchBroadcasts(); // Refresh broadcasts list
-      setSelectedVideo(null); // Clear selection
+      const { success_count, error_count, errors } = response.data;
+      
+      if (success_count > 0) {
+        toast.success(`Successfully scheduled ${success_count} broadcast${success_count > 1 ? 's' : ''}`);
+        fetchBroadcasts(); // Refresh broadcasts list
+        setSelectedVideo(null); // Clear selection
+      }
+      
+      if (error_count > 0) {
+        // Show detailed error information
+        const errorMessage = errors.join('\n');
+        toast.error(`${error_count} broadcast${error_count > 1 ? 's' : ''} failed to schedule`, {
+          description: errorMessage
+        });
+      }
+      
+      if (success_count === 0 && error_count === 0) {
+        toast.error('No broadcasts were scheduled. Please check your settings.');
+      }
+      
     } catch (error) {
       console.error('Failed to schedule broadcasts:', error);
-      toast.error(error.response?.data?.detail || 'Failed to schedule broadcasts');
+      const errorMessage = error.response?.data?.detail || 'Failed to schedule broadcasts';
+      toast.error('Scheduling failed', {
+        description: errorMessage
+      });
     } finally {
       setLoading(false);
     }
