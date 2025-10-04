@@ -120,14 +120,14 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
   const validateScheduleTimes = () => {
     const errors = [];
     
-    // Get current time in IST
-    const nowIST = new Date().toLocaleString("en-CA", {timeZone: "Asia/Kolkata"});
-    const now = new Date(nowIST);
+    // Get current time in IST - use proper IST calculation
+    const now = new Date();
+    const nowIST = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
     
     const times = showCustomTimes ? customTimes : ['05:55', '06:55', '07:55', '16:55', '17:55'];
     
     // Check if selected date is in the past (IST date)
-    const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayIST = new Date(nowIST.getFullYear(), nowIST.getMonth(), nowIST.getDate());
     const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
     
     if (selectedDateOnly < todayIST) {
@@ -138,12 +138,18 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
     times.forEach((timeStr, index) => {
       const [hour, minute] = timeStr.split(':').map(Number);
       
-      // Create schedule time in IST
-      const scheduleDateTime = new Date(selectedDate);
+      // Create schedule time for selected date
+      let scheduleDateTime = new Date(selectedDate);
       scheduleDateTime.setHours(hour, minute, 0, 0);
       
-      // Convert current IST time for comparison
-      const timeDiff = scheduleDateTime - now;
+      // If scheduling for today and time is in the past, assume next day
+      const isToday = selectedDateOnly.getTime() === todayIST.getTime();
+      if (isToday && scheduleDateTime <= nowIST) {
+        scheduleDateTime = new Date(scheduleDateTime.getTime() + 24 * 60 * 60 * 1000); // Add one day
+      }
+      
+      // Calculate time difference
+      const timeDiff = scheduleDateTime - nowIST;
       const minutesFromNow = timeDiff / (1000 * 60);
 
       if (minutesFromNow < 15) {
