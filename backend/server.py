@@ -370,7 +370,7 @@ async def schedule_broadcast(
                 # Create broadcast title with time
                 broadcast_title = f"{request.video_title} - {time_display}"
                 
-                # Create live broadcast
+                # Create live broadcast with auto-start/stop enabled
                 broadcast_body = {
                     'snippet': {
                         'title': f"🔴 LIVE: {broadcast_title}",
@@ -380,6 +380,15 @@ async def schedule_broadcast(
                     'status': {
                         'privacyStatus': 'unlisted',
                         'selfDeclaredMadeForKids': False
+                    },
+                    'contentDetails': {
+                        'enableAutoStart': True,
+                        'enableAutoStop': True,
+                        'recordFromStart': True,
+                        'enableDvr': True,
+                        'enableContentEncryption': False,
+                        'enableEmbed': True,
+                        'projection': 'rectangular'
                     }
                 }
                 
