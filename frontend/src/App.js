@@ -835,6 +835,46 @@ const StreamingDebugPanel = ({ user }) => {
               'Test Simple Pattern Stream (60 seconds)'
             )}
           </Button>
+
+          <Button
+            onClick={async () => {
+              if (!videoId || !streamKey) {
+                toast.error('Please enter both Video ID and Stream Key');
+                return;
+              }
+              
+              setTesting(true);
+              try {
+                const response = await axios.post(`${API}/test/download-stream`, null, {
+                  params: { video_id: videoId, stream_key: streamKey },
+                  headers: { Authorization: `Bearer ${user.access_token}` }
+                });
+                
+                setTestResult(response.data);
+                if (response.data.success) {
+                  toast.success(`Download+Stream started! File: ${response.data.file_size_mb}MB`);
+                } else {
+                  toast.error('Download+Stream test failed');
+                }
+              } catch (error) {
+                setTestResult({ success: false, error: 'Request failed' });
+                toast.error('Test request failed');
+              } finally {
+                setTesting(false);
+              }
+            }}
+            disabled={testing || !videoId || !streamKey}
+            className="w-full bg-orange-600 hover:bg-orange-700"
+          >
+            {testing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Testing...
+              </div>
+            ) : (
+              'Test Download+Stream (60 seconds)'
+            )}
+          </Button>
         </div>
       </div>
 
