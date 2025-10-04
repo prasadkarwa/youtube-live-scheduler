@@ -303,12 +303,23 @@ async def schedule_broadcast(
         scheduled_broadcasts = []
         errors = []
         
-        # Parse the selected date (ensure it's treated as UTC)
-        selected_date = datetime.fromisoformat(request.selected_date.replace('Z', ''))
-        if selected_date.tzinfo is None:
-            selected_date = selected_date.replace(tzinfo=timezone.utc)
+        # Parse the selected date and handle timezone
+        import pytz
         
-        now = datetime.now(timezone.utc)
+        # Get user's timezone (default to India/Kolkata if not specified)
+        user_tz_name = request.timezone or "Asia/Kolkata"
+        try:
+            user_tz = pytz.timezone(user_tz_name)
+        except:
+            user_tz = pytz.timezone("Asia/Kolkata")  # Fallback to IST
+        
+        # Parse the selected date as naive datetime (user's local date)
+        selected_date = datetime.fromisoformat(request.selected_date.replace('Z', ''))
+        if selected_date.tzinfo is not None:
+            selected_date = selected_date.replace(tzinfo=None)
+        
+        now_utc = datetime.now(timezone.utc)
+        now_user_tz = now_utc.astimezone(user_tz)
         
         for time_str in times_to_schedule:
             try:
