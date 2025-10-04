@@ -1300,7 +1300,7 @@ async def upload_video(
             "saved_filename": saved_filename,
             "file_path": file_path,
             "file_size": file_size,
-            "upload_time": datetime.now(timezone.utc),
+            "upload_time": datetime.now(timezone.utc).isoformat(),
             "content_type": file.content_type
         }
         
