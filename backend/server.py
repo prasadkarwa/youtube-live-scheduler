@@ -1584,8 +1584,10 @@ async def schedule_uploaded_video(
                     "source": "uploaded_file"
                 }
                 
-                await db.scheduled_broadcasts.insert_one(broadcast_data)
-                scheduled_broadcasts.append(broadcast_data)
+                result = await db.scheduled_broadcasts.insert_one(broadcast_data)
+                # Remove any MongoDB ObjectId before adding to response
+                clean_broadcast_data = {k: v for k, v in broadcast_data.items() if k != '_id'}
+                scheduled_broadcasts.append(clean_broadcast_data)
                 
             except Exception as slot_error:
                 errors.append(f"Time {time_str}: Failed to schedule - {str(slot_error)}")
