@@ -940,6 +940,10 @@ const VideoUploadPanel = ({ user }) => {
     }
 
     setUploading(true);
+    setUploadProgress(0);
+    setUploadedBytes(0);
+    setTotalBytes(file.size);
+    setUploadStartTime(Date.now());
 
     try {
       const formData = new FormData();
@@ -952,7 +956,13 @@ const VideoUploadPanel = ({ user }) => {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log(`Upload progress: ${percentCompleted}%`);
+          const currentTime = Date.now();
+          const elapsedTime = (currentTime - uploadStartTime) / 1000; // seconds
+          const speed = progressEvent.loaded / elapsedTime; // bytes per second
+          
+          setUploadProgress(percentCompleted);
+          setUploadedBytes(progressEvent.loaded);
+          setUploadSpeed(speed);
         }
       });
 
