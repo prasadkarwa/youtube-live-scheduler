@@ -981,7 +981,7 @@ async def get_user_broadcasts(current_user: User = Depends(get_current_user)):
             {"user_id": current_user.id}
         ).sort("scheduled_time", 1).to_list(100)
         
-        return {"broadcasts": [ScheduledBroadcast(**broadcast) for broadcast in broadcasts]}
+        return {"broadcasts": broadcasts}
     
     except Exception as e:
         logging.error(f"Failed to fetch broadcasts: {e}")
