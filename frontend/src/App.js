@@ -932,6 +932,20 @@ const StreamingDebugPanel = ({ user }) => {
             </div>
           )}
 
+          {testResult.file_size_mb && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-green-700">Downloaded File:</p>
+              <p className="text-xs text-green-600">{testResult.file_size_mb}MB - {testResult.temp_file}</p>
+            </div>
+          )}
+
+          {testResult.process_id && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-blue-700">Process Info:</p>
+              <p className="text-xs text-blue-600">PID: {testResult.process_id} - Duration: {testResult.stream_duration}</p>
+            </div>
+          )}
+
           {testResult.stderr && (
             <div className="mt-2">
               <p className="text-xs font-medium text-red-700">FFmpeg Error Output:</p>
