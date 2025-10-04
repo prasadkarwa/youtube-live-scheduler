@@ -181,7 +181,15 @@ async def get_video_stream_url(video_id: str) -> tuple[str, str]:
                     return None, error_msg
                     
             except yt_dlp.DownloadError as e:
-                error_msg = f"yt-dlp download error: {str(e)}"
+                error_str = str(e)
+                if "live event will begin in" in error_str.lower():
+                    error_msg = f"Cannot extract from future live event: {error_str}. Please use a completed/existing video."
+                elif "private video" in error_str.lower():
+                    error_msg = f"Video is private or restricted: {error_str}"
+                elif "video unavailable" in error_str.lower():
+                    error_msg = f"Video unavailable: {error_str}. Video may be deleted or restricted."
+                else:
+                    error_msg = f"yt-dlp download error: {error_str}"
                 logging.error(error_msg)
                 return None, error_msg
                 
