@@ -959,6 +959,98 @@ async def test_streaming(
         logging.error(f"Test streaming failed: {e}")
         return {"error": str(e)}
 
+@api_router.post("/test/simple-stream")
+async def test_simple_streaming(
+    stream_key: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Test streaming with a simple test pattern instead of YouTube video"""
+    try:
+        logging.info(f"Testing simple stream with stream key {stream_key}")
+        
+        # Use a simple test pattern instead of YouTube video
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        logging.info(f"RTMP URL: {rtmp_url}")
+        
+        # Create a simple test pattern using FFmpeg
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'lavfi',
+            '-i', 'testsrc2=size=1280x720:rate=30',
+            '-f', 'lavfi', 
+            '-i', 'sine=frequency=1000:sample_rate=44100',
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-preset', 'veryfast',
+            '-tune', 'zerolatency',
+            '-pix_fmt', 'yuv420p',
+            '-maxrate', '2500k',
+            '-bufsize', '5000k',
+            '-vf', 'drawtext=text="Test Stream %{localtime}":fontcolor=white:fontsize=24:x=10:y=10',
+            '-r', '30',
+            '-g', '60',
+            '-keyint_min', '30',
+            '-sc_threshold', '0',
+            '-b:v', '2000k',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-f', 'flv',
+            '-flvflags', 'no_duration_filesize',
+            '-t', '60',  # Stream for 60 seconds
+            rtmp_url
+        ]
+        
+        logging.info(f"FFmpeg command: {' '.join(cmd)}")
+        
+        # Start FFmpeg process
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        # Wait a bit and check if process is running
+        time.sleep(3)
+        
+        if process.poll() is None:
+            logging.info("Simple test stream started successfully")
+            
+            # Store process info
+            await db.streaming_processes.insert_one({
+                "broadcast_id": f"test_simple_{int(time.time())}",
+                "process_id": process.pid,
+                "started_at": datetime.now(timezone.utc),
+                "video_id": "test_pattern",
+                "stream_type": "simple_test"
+            })
+            
+            return {
+                "success": True,
+                "message": "Simple test stream started successfully",
+                "rtmp_url": rtmp_url,
+                "process_id": process.pid,
+                "stream_duration": "60 seconds",
+                "test_pattern": "Color bars with timestamp and 1kHz tone"
+            }
+        else:
+            # Process failed, get error output
+            stdout, stderr = process.communicate()
+            logging.error(f"Simple stream FFmpeg failed. Output: {stdout}")
+            
+            return {
+                "success": False,
+                "error": "FFmpeg process failed to start",
+                "output": stdout[-500:] if stdout else "No output",
+                "rtmp_url": rtmp_url
+            }
+            
+    except Exception as e:
+        logging.error(f"Simple streaming test failed: {e}")
+        return {"success": False, "error": str(e)}
+
 @api_router.get("/streaming/status")
 async def get_streaming_status(current_user: User = Depends(get_current_user)):
     """Get status of active streams"""
