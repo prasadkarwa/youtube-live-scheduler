@@ -14,6 +14,10 @@ from datetime import datetime, timedelta, timezone
 import asyncio
 import json
 import secrets
+import subprocess
+import threading
+import time
+import yt_dlp
 from urllib.parse import urlencode
 
 # Google API imports
