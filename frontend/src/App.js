@@ -898,7 +898,7 @@ const VideoUploadPanel = ({ user }) => {
                 Upload your video files
               </span>
               <span className="mt-1 block text-sm text-gray-600">
-                MP4, AVI, MOV, MKV, WMV up to 500MB
+                MP4, AVI, MOV, MKV, WMV up to 2GB
               </span>
             </label>
             <input
