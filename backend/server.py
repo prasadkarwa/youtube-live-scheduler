@@ -1554,11 +1554,17 @@ async def schedule_uploaded_video(
                     errors.append(f"Time {time_str} IST is too far in the future. Maximum 6 months ahead.")
                     continue
                 
-                # Create YouTube Live broadcast
+                # Format time for title (12-hour format)
+                time_12hr = scheduled_datetime_ist.strftime('%I:%M %p').lstrip('0').replace(':00', '')  # e.g., "5:55 AM"
+                
+                # Create YouTube Live broadcast with custom title and time
+                custom_title = video_info.get('custom_title', video_info['original_filename'])
+                broadcast_title = f"{custom_title} - {time_12hr}"
+                
                 broadcast_body = {
                     'snippet': {
-                        'title': f"🔴 LIVE: {video_info['original_filename']}",
-                        'description': f"Scheduled live stream of uploaded video: {video_info['original_filename']}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %I:%M %p IST')}",
+                        'title': f"🔴 LIVE: {broadcast_title}",
+                        'description': f"Scheduled live stream: {custom_title}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %I:%M %p IST')}",
                         'scheduledStartTime': scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
                     },
                     'status': {
