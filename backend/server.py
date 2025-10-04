@@ -1354,19 +1354,23 @@ async def get_uploaded_videos(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/schedule/uploaded-video")
 async def schedule_uploaded_video(
-    file_id: str,
-    selected_date: str,
-    custom_times: list[str] = None,
+    request: dict,
     current_user: User = Depends(get_current_user)
 ):
     """Schedule broadcasts using uploaded video"""
+    import pytz
+    
     try:
+        file_id = request["file_id"]
+        selected_date = request["selected_date"] 
+        custom_times = request.get("custom_times")
+        
         # Get uploaded video info
         video_info = await db.uploaded_videos.find_one({"id": file_id, "user_id": current_user.id})
         if not video_info:
             raise HTTPException(status_code=404, detail="Video not found")
         
-        # Similar scheduling logic but use local file
+        # Get YouTube credentials
         user = await refresh_token_if_needed(current_user)
         creds = get_credentials_from_token(user.access_token, user.refresh_token)
         youtube = get_youtube_service(creds)
@@ -1378,17 +1382,153 @@ async def schedule_uploaded_video(
         scheduled_broadcasts = []
         errors = []
         
-        # [Rest of scheduling logic would go here - similar to existing but using local file]
+        # Set user timezone to India (IST)
+        user_tz = pytz.timezone("Asia/Kolkata")
+        utc_tz = pytz.timezone("UTC")
+        
+        # Parse the selected date and convert from UTC to IST
+        selected_date_str = selected_date.replace('Z', '')
+        selected_date_utc = datetime.fromisoformat(selected_date_str)
+        if selected_date_utc.tzinfo is None:
+            selected_date_utc = selected_date_utc.replace(tzinfo=timezone.utc)
+        
+        selected_date_ist = selected_date_utc.astimezone(user_tz)
+        selected_date = selected_date_ist.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        
+        now_utc = datetime.now(utc_tz)
+        now_ist = now_utc.astimezone(user_tz)
+        
+        for time_str in times_to_schedule:
+            try:
+                # Parse time and combine with date
+                hour, minute = map(int, time_str.split(':'))
+                scheduled_datetime_naive = selected_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                
+                # If the scheduled time is in the past (same day), move it to next day
+                current_ist_naive = now_ist.replace(tzinfo=None)
+                if scheduled_datetime_naive <= current_ist_naive:
+                    scheduled_datetime_naive = scheduled_datetime_naive + timedelta(days=1)
+                
+                # Localize to IST then convert to UTC
+                scheduled_datetime_ist = user_tz.localize(scheduled_datetime_naive)
+                scheduled_datetime_utc = scheduled_datetime_ist.astimezone(utc_tz)
+                
+                # Validate scheduling constraints
+                time_diff = scheduled_datetime_utc - now_utc
+                
+                if time_diff.total_seconds() < 180:  # 3 minutes
+                    errors.append(f"Time {time_str} IST is too soon. Must be at least 3 minutes in the future.")
+                    continue
+                
+                if time_diff.days > 180:  # ~6 months
+                    errors.append(f"Time {time_str} IST is too far in the future. Maximum 6 months ahead.")
+                    continue
+                
+                # Create YouTube Live broadcast
+                broadcast_body = {
+                    'snippet': {
+                        'title': f"🔴 LIVE: {video_info['original_filename']}",
+                        'description': f"Scheduled live stream of uploaded video: {video_info['original_filename']}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %I:%M %p IST')}",
+                        'scheduledStartTime': scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                    },
+                    'status': {
+                        'privacyStatus': 'unlisted',
+                        'selfDeclaredMadeForKids': False
+                    },
+                    'contentDetails': {
+                        'enableAutoStart': True,
+                        'enableAutoStop': True,
+                        'recordFromStart': True,
+                        'enableDvr': True,
+                        'enableContentEncryption': False,
+                        'enableEmbed': True,
+                        'projection': 'rectangular'
+                    }
+                }
+                
+                broadcast_response = youtube.liveBroadcasts().insert(
+                    part='snippet,status,contentDetails',
+                    body=broadcast_body
+                ).execute()
+                
+                broadcast_id = broadcast_response['id']
+                
+                # Create live stream
+                stream_body = {
+                    'snippet': {
+                        'title': f"Stream for {video_info['original_filename']} at {time_str} IST"
+                    },
+                    'cdn': {
+                        'frameRate': '30fps',
+                        'ingestionType': 'rtmp',
+                        'resolution': '720p'
+                    }
+                }
+                
+                stream_response = youtube.liveStreams().insert(
+                    part='snippet,cdn',
+                    body=stream_body
+                ).execute()
+                
+                stream_id = stream_response['id']
+                stream_name = stream_response['cdn']['ingestionInfo']['streamName']
+                
+                # Bind stream to broadcast
+                youtube.liveBroadcasts().bind(
+                    part='id',
+                    id=broadcast_id,
+                    streamId=stream_id
+                ).execute()
+                
+                # Schedule the local file streaming
+                asyncio.create_task(
+                    schedule_uploaded_video_stream(
+                        broadcast_id=broadcast_id,
+                        stream_key=stream_name,
+                        file_path=video_info['file_path'],
+                        start_time=scheduled_datetime_utc
+                    )
+                )
+                
+                # Store in database
+                broadcast_data = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user.id,
+                    "video_id": file_id,
+                    "video_title": video_info['original_filename'],
+                    "broadcast_id": broadcast_id,
+                    "stream_id": stream_id,
+                    "scheduled_time": scheduled_datetime_utc.isoformat(),
+                    "status": 'created',
+                    "stream_url": stream_name,
+                    "watch_url": f"https://www.youtube.com/watch?v={broadcast_id}",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "source": "uploaded_file"
+                }
+                
+                await db.scheduled_broadcasts.insert_one(broadcast_data)
+                scheduled_broadcasts.append(broadcast_data)
+                
+            except Exception as slot_error:
+                errors.append(f"Time {time_str}: Failed to schedule - {str(slot_error)}")
+                logging.error(f"Error scheduling time {time_str}: {slot_error}")
+        
+        response_message = f"Successfully scheduled {len(scheduled_broadcasts)} broadcasts using uploaded video"
+        if errors:
+            response_message += f". {len(errors)} failed"
         
         return {
-            "message": f"Successfully scheduled broadcasts using uploaded video",
+            "message": response_message,
             "broadcasts": scheduled_broadcasts,
+            "errors": errors,
+            "success_count": len(scheduled_broadcasts),
+            "error_count": len(errors),
             "video_file": video_info["original_filename"]
         }
         
     except Exception as e:
         logging.error(f"Failed to schedule uploaded video: {e}")
-        raise HTTPException(status_code=500, detail="Failed to schedule uploaded video")
+        raise HTTPException(status_code=500, detail=f"Failed to schedule uploaded video: {str(e)}")
 
 @api_router.post("/test/download-stream")
 async def test_download_streaming(
