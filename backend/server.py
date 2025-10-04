@@ -321,7 +321,8 @@ async def schedule_broadcast(
         
         logging.info(f"Current UTC time: {now_utc}")
         logging.info(f"Current IST time: {now_ist}")
-        logging.info(f"Selected date: {selected_date}")
+        logging.info(f"Selected date (naive): {selected_date}")
+        logging.info(f"Times to schedule: {times_to_schedule}")
         
         for time_str in times_to_schedule:
             try:
