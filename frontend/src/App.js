@@ -866,12 +866,17 @@ const StreamingDebugPanel = ({ user }) => {
       <div className="bg-gray-50 border rounded-lg p-4">
         <h4 className="font-medium text-gray-800">How to use this:</h4>
         <ol className="text-sm text-gray-600 mt-2 space-y-1 list-decimal list-inside">
-          <li>Go to YouTube Studio → Create → Go Live</li>
-          <li>Set up a live stream and copy the Stream Key</li>
-          <li>Enter any YouTube video ID you want to test with</li>
-          <li>Click "Test Streaming" to verify the pipeline works</li>
-          <li>Check YouTube Studio to see if the stream appears</li>
+          <li><strong>Step 1:</strong> Use one of the quick test video IDs or enter your own <strong>existing/completed</strong> video ID</li>
+          <li><strong>Step 2:</strong> Click "Test Video Extraction Only" to verify it works</li>
+          <li><strong>Step 3:</strong> Go to YouTube Studio → Create → Go Live and copy the Stream Key</li>
+          <li><strong>Step 4:</strong> Enter the Stream Key and click "Test Full Streaming"</li>
+          <li><strong>Step 5:</strong> Check YouTube Studio to see if the stream appears</li>
         </ol>
+        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+          <p className="text-xs text-yellow-800">
+            ⚠️ <strong>Important:</strong> Don't use future live events or private videos. Use existing, public videos for testing.
+          </p>
+        </div>
       </div>
     </div>
   );
