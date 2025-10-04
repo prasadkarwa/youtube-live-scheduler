@@ -263,10 +263,10 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
 
         {!showCustomTimes && (
           <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Default broadcast times:</p>
+            <p className="text-sm text-gray-600 mb-2">Default broadcast times (IST):</p>
             <div className="flex flex-wrap gap-2">
               {['05:55', '06:55', '07:55', '16:55', '17:55'].map((time, index) => (
-                <Badge key={index} className="bg-red-100 text-red-800">{time}</Badge>
+                <Badge key={index} className="bg-red-100 text-red-800">{time} IST</Badge>
               ))}
             </div>
           </div>
