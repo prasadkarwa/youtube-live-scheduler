@@ -795,6 +795,46 @@ const StreamingDebugPanel = ({ user }) => {
               'Test Full Streaming (30 seconds)'
             )}
           </Button>
+
+          <Button
+            onClick={async () => {
+              if (!streamKey) {
+                toast.error('Please enter a Stream Key');
+                return;
+              }
+              
+              setTesting(true);
+              try {
+                const response = await axios.post(`${API}/test/simple-stream`, null, {
+                  params: { stream_key: streamKey },
+                  headers: { Authorization: `Bearer ${user.access_token}` }
+                });
+                
+                setTestResult(response.data);
+                if (response.data.success) {
+                  toast.success('Simple test stream started! Check YouTube Studio.');
+                } else {
+                  toast.error('Simple test stream failed');
+                }
+              } catch (error) {
+                setTestResult({ success: false, error: 'Request failed', stream_key: streamKey });
+                toast.error('Test request failed');
+              } finally {
+                setTesting(false);
+              }
+            }}
+            disabled={testing || !streamKey}
+            className="w-full bg-purple-600 hover:bg-purple-700"
+          >
+            {testing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Testing...
+              </div>
+            ) : (
+              'Test Simple Pattern Stream (60 seconds)'
+            )}
+          </Button>
         </div>
       </div>
 
