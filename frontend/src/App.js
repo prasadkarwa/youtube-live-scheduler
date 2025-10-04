@@ -974,6 +974,10 @@ const VideoUploadPanel = ({ user }) => {
       toast.error(error.response?.data?.detail || 'Upload failed');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
+      setUploadedBytes(0);
+      setTotalBytes(0);
+      setUploadSpeed(0);
     }
   };
 
