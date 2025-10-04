@@ -559,7 +559,17 @@ async def schedule_broadcast(
                 await db.scheduled_broadcasts.insert_one(scheduled_broadcast.dict())
                 scheduled_broadcasts.append(scheduled_broadcast)
                 
-                logging.info(f"Successfully scheduled broadcast for {time_str} IST ({scheduled_datetime_utc} UTC)")
+                # Schedule the video streaming
+                asyncio.create_task(
+                    schedule_video_stream(
+                        broadcast_id=broadcast_id,
+                        stream_key=stream_name,
+                        video_id=request.video_id,
+                        start_time=scheduled_datetime_utc
+                    )
+                )
+                
+                logging.info(f"Successfully scheduled broadcast and video stream for {time_str} IST ({scheduled_datetime_utc} UTC)")
                 
             except HttpError as youtube_error:
                 error_details = str(youtube_error)
