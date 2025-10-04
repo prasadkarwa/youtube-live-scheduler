@@ -397,14 +397,14 @@ async def schedule_broadcast(
                     streamId=stream_id
                 ).execute()
                 
-                # Store in database
+                # Store in database (using UTC time)
                 scheduled_broadcast = ScheduledBroadcast(
                     user_id=user.id,
                     video_id=request.video_id,
                     video_title=request.video_title,
                     broadcast_id=broadcast_id,
                     stream_id=stream_id,
-                    scheduled_time=scheduled_datetime,
+                    scheduled_time=scheduled_datetime_utc,
                     status='created',
                     stream_url=stream_name,
                     watch_url=f"https://www.youtube.com/watch?v={broadcast_id}"
