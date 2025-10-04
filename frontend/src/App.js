@@ -816,16 +816,19 @@ const VideoUploadPanel = ({ user }) => {
                       Uploaded {new Date(video.upload_time).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      toast.success('Copy this File ID to use in scheduling: ' + video.id);
-                      navigator.clipboard.writeText(video.id);
-                    }}
-                  >
-                    Use in Schedule
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        Schedule This Video
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Schedule: {video.original_filename}</DialogTitle>
+                      </DialogHeader>
+                      <UploadedVideoScheduler video={video} user={user} />
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </Card>
             ))}
