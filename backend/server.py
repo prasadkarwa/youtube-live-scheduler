@@ -360,11 +360,18 @@ async def schedule_broadcast(
                 # Format datetime for YouTube API
                 scheduled_datetime_iso = scheduled_datetime_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
                 
+                # Format time for display (12-hour format)
+                time_12hr = scheduled_datetime_ist.strftime('%I:%M %p')
+                time_display = scheduled_datetime_ist.strftime('%I%p').lower().replace(':00', '').replace('0', '')  # e.g., "5am", "6pm"
+                
+                # Create broadcast title with time
+                broadcast_title = f"{request.video_title} - {time_display}"
+                
                 # Create live broadcast
                 broadcast_body = {
                     'snippet': {
-                        'title': f"🔴 LIVE: {request.video_title}",
-                        'description': f"Scheduled live stream of: {request.video_title}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %H:%M IST')}\nOriginal video: https://youtube.com/watch?v={request.video_id}",
+                        'title': f"🔴 LIVE: {broadcast_title}",
+                        'description': f"Scheduled live stream of: {request.video_title}\n\nScheduled for: {scheduled_datetime_ist.strftime('%Y-%m-%d %I:%M %p IST')}\nOriginal video: https://youtube.com/watch?v={request.video_id}",
                         'scheduledStartTime': scheduled_datetime_iso,
                     },
                     'status': {
