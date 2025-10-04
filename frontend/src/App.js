@@ -962,6 +962,22 @@ const VideoUploadPanel = ({ user }) => {
     }
   };
 
+  const handleDeleteVideo = async (videoId, filename) => {
+    if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+
+    try {
+      await axios.delete(`${API}/uploaded-videos/${videoId}`, {
+        headers: { Authorization: `Bearer ${user.access_token}` }
+      });
+
+      toast.success('Video deleted successfully');
+      fetchUploadedVideos(); // Refresh list
+    } catch (error) {
+      console.error('Failed to delete video:', error);
+      toast.error('Failed to delete video');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Upload Section */}
