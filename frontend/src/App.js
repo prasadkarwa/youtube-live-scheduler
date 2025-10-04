@@ -414,6 +414,9 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
                       <Play className="w-4 h-4 mr-1" />
                       Watch Page
                     </Button>
+                    <div className="text-xs text-gray-500 flex items-center">
+                      📺 Auto-stream enabled
+                    </div>
                   </div>
                 </div>
                 <Button
