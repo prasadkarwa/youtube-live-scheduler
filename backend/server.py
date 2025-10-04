@@ -152,12 +152,17 @@ def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = 
             '-i', video_url,  # Input video URL
             '-c:v', 'libx264',  # Video codec
             '-c:a', 'aac',  # Audio codec
-            '-preset', 'veryfast',  # Encoding preset
-            '-maxrate', '3000k',  # Maximum bitrate
-            '-bufsize', '6000k',  # Buffer size
-            '-vf', 'scale=-2:720',  # Scale to 720p
-            '-g', '50',  # GOP size
+            '-preset', 'ultrafast',  # Faster encoding preset
+            '-tune', 'zerolatency',  # Low latency tuning
+            '-maxrate', '2500k',  # Lower maximum bitrate
+            '-bufsize', '5000k',  # Buffer size
+            '-vf', 'scale=1280:720',  # Fixed scale to 720p
+            '-r', '30',  # Frame rate
+            '-g', '60',  # GOP size
+            '-keyint_min', '60',  # Minimum GOP size
+            '-sc_threshold', '0',  # Disable scene change detection
             '-f', 'flv',  # Output format
+            '-flvflags', 'no_duration_filesize',  # FLV flags for live streaming
             rtmp_url  # RTMP destination
         ]
         
@@ -168,13 +173,30 @@ def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = 
         
         logging.info(f"Starting FFmpeg stream: {' '.join(cmd)}")
         
-        # Start FFmpeg process
+        # Start FFmpeg process with better error handling
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE
+            stderr=subprocess.STDOUT,  # Combine stderr and stdout
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
         )
+        
+        # Monitor the process for a few seconds to catch early failures
+        import threading
+        
+        def log_output():
+            try:
+                for line in process.stdout:
+                    logging.info(f"FFmpeg: {line.strip()}")
+            except:
+                pass
+        
+        # Start logging thread
+        log_thread = threading.Thread(target=log_output)
+        log_thread.daemon = True
+        log_thread.start()
         
         return process
         
