@@ -1007,6 +1007,35 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
+@api_router.get("/test/youtube-access")
+async def test_youtube_access():
+    """Test if we can access YouTube without authentication"""
+    try:
+        video_id = "dQw4w9WgXcQ"
+        ydl_opts = {
+            'format': 'best[height<=720]/best',
+            'quiet': True,
+            'socket_timeout': 10,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+            
+            return {
+                "success": True,
+                "video_title": info.get("title", "Unknown"),
+                "duration": info.get("duration", "Unknown"),
+                "format_count": len(info.get("formats", [])),
+                "has_url": "url" in info,
+                "message": "YouTube access working"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "YouTube access failed"
+        }
+
 @api_router.get("/test/video/{video_id}")
 async def test_video_extraction(video_id: str, current_user: User = Depends(get_current_user)):
     """Test video URL extraction only"""
