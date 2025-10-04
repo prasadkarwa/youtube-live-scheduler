@@ -186,7 +186,8 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
       video_id: selectedVideo.id,
       video_title: selectedVideo.title,
       selected_date: selectedDate.toISOString(),
-      custom_times: showCustomTimes ? customTimes : null
+      custom_times: showCustomTimes ? customTimes : null,
+      timezone: "Asia/Kolkata"
     };
 
     onSchedule(scheduleData);
