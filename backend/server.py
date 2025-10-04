@@ -393,7 +393,7 @@ async def schedule_broadcast(
                 }
                 
                 broadcast_response = youtube.liveBroadcasts().insert(
-                    part='snippet,status',
+                    part='snippet,status,contentDetails',
                     body=broadcast_body
                 ).execute()
                 
