@@ -1389,6 +1389,7 @@ async def upload_video(
             "id": file_id,
             "user_id": current_user.id,
             "original_filename": file.filename,
+            "custom_title": file.filename.rsplit('.', 1)[0],  # Default to filename without extension
             "saved_filename": saved_filename,
             "file_path": file_path,
             "file_size": file_size,
