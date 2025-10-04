@@ -794,9 +794,14 @@ async def test_streaming(
         logging.info(f"Testing stream for video {video_id} with stream key {stream_key}")
         
         # Test video URL extraction
-        video_url = await get_video_stream_url(video_id)
+        video_url, extraction_info = await get_video_stream_url(video_id)
         if not video_url:
-            return {"error": "Could not extract video URL", "video_id": video_id}
+            return {
+                "error": "Could not extract video URL", 
+                "video_id": video_id,
+                "extraction_error": extraction_info,
+                "debug_info": f"Attempted to extract from: https://www.youtube.com/watch?v={video_id}"
+            }
         
         logging.info(f"Extracted video URL: {video_url[:100]}...")
         
