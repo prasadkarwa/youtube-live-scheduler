@@ -113,15 +113,16 @@ async def get_video_stream_url(video_id: str) -> tuple[str, str]:
     """Get the best quality stream URL for a YouTube video"""
     try:
         ydl_opts = {
-            'format': 'best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best',
-            'quiet': False,  # Enable verbose output for debugging
+            'format': 'best[ext=mp4][height<=720]/best[ext=webm][height<=720]/best[height<=720]/best[ext=mp4]/best',
+            'quiet': False,
             'no_warnings': False,
             'extractaudio': False,
             'audioformat': 'aac',
             'outtmpl': '%(id)s.%(ext)s',
             'writesubtitles': False,
             'writeautomaticsub': False,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'http_chunk_size': 10485760,  # 10MB chunks
         }
         
         video_url = f'https://www.youtube.com/watch?v={video_id}'
