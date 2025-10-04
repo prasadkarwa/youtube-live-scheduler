@@ -853,8 +853,8 @@ const VideoUploadPanel = ({ user }) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (file.size > 500 * 1024 * 1024) { // 500MB limit
-      toast.error('File too large. Maximum size is 500MB.');
+    if (file.size > 2 * 1024 * 1024 * 1024) { // 2GB limit
+      toast.error('File too large. Maximum size is 2GB.');
       return;
     }
 
