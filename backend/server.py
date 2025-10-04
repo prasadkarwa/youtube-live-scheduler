@@ -1358,9 +1358,13 @@ async def upload_video(
     try:
         import os
         
-        # Validate file type
+        # Validate file type and size
         if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv')):
             raise HTTPException(status_code=400, detail="Only video files are allowed")
+        
+        # Check content length if available
+        if hasattr(file, 'size') and file.size > 2 * 1024 * 1024 * 1024:  # 2GB
+            raise HTTPException(status_code=413, detail="File too large. Maximum size is 2GB.")
         
         # Create uploads directory if it doesn't exist
         upload_dir = "/app/uploads"
