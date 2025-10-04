@@ -1329,9 +1329,16 @@ async def upload_video(
 async def get_uploaded_videos(current_user: User = Depends(get_current_user)):
     """Get list of uploaded videos for current user"""
     try:
-        videos = await db.uploaded_videos.find(
+        videos_cursor = db.uploaded_videos.find(
             {"user_id": current_user.id}
-        ).sort("upload_time", -1).to_list(100)
+        ).sort("upload_time", -1)
+        
+        videos = []
+        async for video in videos_cursor:
+            # Remove MongoDB ObjectId to avoid serialization issues
+            if "_id" in video:
+                del video["_id"]
+            videos.append(video)
         
         return {"videos": videos}
     except Exception as e:
