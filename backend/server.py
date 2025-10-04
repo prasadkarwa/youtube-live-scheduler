@@ -154,44 +154,74 @@ async def get_video_stream_url(video_id: str) -> tuple[str, str]:
                     formats = info['formats']
                     logging.info(f"Found {len(formats)} formats")
                     
-                    # Prioritize direct video URLs over HLS manifests
-                    # First try: mp4 with both video and audio
+                    # Log all available formats for debugging
+                    logging.info("Available formats:")
+                    for i, fmt in enumerate(formats[:10]):  # Log first 10 formats
+                        protocol = fmt.get('protocol', 'unknown')
+                        url = fmt.get('url', '')
+                        is_hls = url.endswith('.m3u8') or 'manifest' in url or protocol in ['m3u8', 'm3u8_native']
+                        logging.info(f"Format {i}: {fmt.get('format_id')} - {fmt.get('ext')} - {fmt.get('height')}p - Protocol: {protocol} - HLS: {is_hls}")
+                    
+                    # Prioritize direct HTTP/HTTPS URLs over HLS manifests
+                    # First try: mp4 with both video and audio, NOT HLS
                     for fmt in formats:
+                        url = fmt.get('url', '')
+                        protocol = fmt.get('protocol', '')
+                        is_hls = (url.endswith('.m3u8') or 'manifest' in url or 
+                                protocol in ['m3u8', 'm3u8_native', 'hls'])
+                        
                         if (fmt.get('ext') == 'mp4' and
                             fmt.get('vcodec') != 'none' and 
                             fmt.get('acodec') != 'none' and 
-                            fmt.get('url') and
-                            not fmt.get('url', '').endswith('.m3u8') and
-                            fmt.get('height', 0) <= 720):
-                            stream_url = fmt['url']
+                            url and not is_hls and
+                            fmt.get('height', 0) <= 720 and
+                            protocol in ['http', 'https']):
+                            stream_url = url
                             extraction_method = f"mp4_direct_{fmt.get('height', 'unknown')}p"
-                            logging.info(f"Selected MP4 format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                            logging.info(f"Selected MP4 HTTP format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
                             break
                     
-                    # Second try: any non-HLS format with video and audio
+                    # Second try: any non-HLS HTTP format with video and audio
                     if not stream_url:
                         for fmt in formats:
+                            url = fmt.get('url', '')
+                            protocol = fmt.get('protocol', '')
+                            is_hls = (url.endswith('.m3u8') or 'manifest' in url or 
+                                    protocol in ['m3u8', 'm3u8_native', 'hls'])
+                            
                             if (fmt.get('vcodec') != 'none' and 
                                 fmt.get('acodec') != 'none' and 
-                                fmt.get('url') and
-                                not fmt.get('url', '').endswith('.m3u8') and
-                                fmt.get('height', 0) <= 720):
-                                stream_url = fmt['url']
-                                extraction_method = f"direct_video_{fmt.get('ext', 'unknown')}_{fmt.get('height', 'unknown')}p"
-                                logging.info(f"Selected direct format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                                url and not is_hls and
+                                fmt.get('height', 0) <= 720 and
+                                protocol in ['http', 'https']):
+                                stream_url = url
+                                extraction_method = f"direct_http_{fmt.get('ext', 'unknown')}_{fmt.get('height', 'unknown')}p"
+                                logging.info(f"Selected direct HTTP format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
                                 break
                     
-                    # Third try: HLS manifest as last resort
+                    # Third try: any HTTP format (even without audio, we'll add audio later)
                     if not stream_url:
                         for fmt in formats:
+                            url = fmt.get('url', '')
+                            protocol = fmt.get('protocol', '')
+                            is_hls = (url.endswith('.m3u8') or 'manifest' in url or 
+                                    protocol in ['m3u8', 'm3u8_native', 'hls'])
+                            
                             if (fmt.get('vcodec') != 'none' and 
-                                fmt.get('acodec') != 'none' and 
-                                fmt.get('url') and
-                                fmt.get('height', 0) <= 720):
-                                stream_url = fmt['url']
-                                extraction_method = f"hls_manifest_{fmt.get('height', 'unknown')}p"
-                                logging.info(f"Using HLS format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
+                                url and not is_hls and
+                                fmt.get('height', 0) <= 720 and
+                                protocol in ['http', 'https']):
+                                stream_url = url
+                                extraction_method = f"video_only_http_{fmt.get('ext', 'unknown')}_{fmt.get('height', 'unknown')}p"
+                                logging.info(f"Selected video-only HTTP format: {fmt.get('format_id')} - {fmt.get('height', 'unknown')}p")
                                 break
+                    
+                    # Last resort: reject HLS completely and return error
+                    if not stream_url:
+                        available_protocols = list(set([fmt.get('protocol', 'unknown') for fmt in formats[:10]]))
+                        error_msg = f"No suitable non-HLS format found. Available protocols: {available_protocols}. YouTube may only provide HLS for this video."
+                        logging.error(error_msg)
+                        return None, error_msg
                 
                 # Method 3: Try manifest URL if available
                 elif 'manifest_url' in info:
