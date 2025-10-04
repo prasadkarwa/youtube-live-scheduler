@@ -389,7 +389,7 @@ async def schedule_broadcast(
                 # Create live stream
                 stream_body = {
                     'snippet': {
-                        'title': f"Stream for {request.video_title} at {time_str} IST"
+                        'title': f"Stream for {broadcast_title}"
                     },
                     'cdn': {
                         'frameRate': '30fps',
