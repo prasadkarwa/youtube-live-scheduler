@@ -356,12 +356,29 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
   const getBadgeVariant = (status) => {
     switch (status) {
       case 'created': return 'default';
-      case 'live': return 'destructive';
+      case 'streaming': return 'destructive';
       case 'completed': return 'secondary';
-      case 'error': return 'destructive';
+      case 'failed': return 'destructive';
+      case 'scheduled': return 'default';
       default: return 'default';
     }
   };
+
+  const isUpcoming = (scheduledTime) => {
+    return new Date(scheduledTime) > new Date();
+  };
+
+  // Sort broadcasts: upcoming first, then completed/failed
+  const sortedBroadcasts = [...broadcasts].sort((a, b) => {
+    const aUpcoming = isUpcoming(a.scheduled_time);
+    const bUpcoming = isUpcoming(b.scheduled_time);
+    
+    if (aUpcoming && !bUpcoming) return -1;
+    if (!aUpcoming && bUpcoming) return 1;
+    
+    // Within same category, sort by scheduled time
+    return new Date(a.scheduled_time) - new Date(b.scheduled_time);
+  });
 
   const formatDateTime = (dateTime) => {
     return new Date(dateTime).toLocaleString('en-US', {
