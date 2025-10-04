@@ -938,26 +938,40 @@ const VideoUploadPanel = ({ user }) => {
             {uploadedVideos.map((video) => (
               <Card key={video.id} className="p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{video.original_filename}</h4>
-                    <p className="text-sm text-gray-600">
+                  <div className="flex-1 min-w-0">
+                    <EditableTitle 
+                      video={video} 
+                      user={user} 
+                      onUpdate={() => fetchUploadedVideos()}
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
                       {Math.round(video.file_size / 1024 / 1024)}MB • 
                       Uploaded {new Date(video.upload_time).toLocaleDateString()}
                     </p>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        Schedule This Video
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Schedule: {video.original_filename}</DialogTitle>
-                      </DialogHeader>
-                      <UploadedVideoScheduler video={video} user={user} />
-                    </DialogContent>
-                  </Dialog>
+                  <div className="flex gap-2 ml-4">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Schedule
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Schedule: {video.custom_title || video.original_filename}</DialogTitle>
+                        </DialogHeader>
+                        <UploadedVideoScheduler video={video} user={user} />
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteVideo(video.id, video.original_filename)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
