@@ -362,6 +362,9 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
         
         logging.info(f"Starting scheduled stream for broadcast {broadcast_id}")
         
+        # Construct RTMP URL first (needed for both success and fallback)
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        
         # Use download+stream method since it's more reliable
         temp_dir = tempfile.mkdtemp()
         temp_file = os.path.join(temp_dir, f"{video_id}_{broadcast_id}.mp4")
