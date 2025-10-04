@@ -115,11 +115,44 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [customTimes, setCustomTimes] = useState(['05:55', '06:55', '07:55', '16:55', '17:55']);
   const [showCustomTimes, setShowCustomTimes] = useState(false);
+  const [validationErrors, setValidationErrors] = useState([]);
+
+  const validateScheduleTimes = () => {
+    const errors = [];
+    const now = new Date();
+    const times = showCustomTimes ? customTimes : ['05:55', '06:55', '07:55', '16:55', '17:55'];
+    
+    // Check if selected date is in the past
+    if (selectedDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      errors.push('Selected date cannot be in the past');
+      return errors;
+    }
+
+    times.forEach((timeStr, index) => {
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const scheduleDateTime = new Date(selectedDate);
+      scheduleDateTime.setHours(hour, minute, 0, 0);
+
+      const timeDiff = scheduleDateTime - now;
+      const minutesFromNow = timeDiff / (1000 * 60);
+
+      if (minutesFromNow < 15) {
+        errors.push(`Time ${timeStr}: Must be at least 15 minutes in the future`);
+      }
+
+      if (timeDiff > 180 * 24 * 60 * 60 * 1000) { // 180 days in milliseconds
+        errors.push(`Time ${timeStr}: Cannot schedule more than 6 months in advance`);
+      }
+    });
+
+    return errors;
+  };
 
   const handleTimeChange = (index, value) => {
     const newTimes = [...customTimes];
     newTimes[index] = value;
     setCustomTimes(newTimes);
+    setValidationErrors([]); // Clear validation errors when times change
   };
 
   const addTimeSlot = () => {
@@ -130,9 +163,22 @@ const ScheduleForm = ({ selectedVideo, onSchedule, loading }) => {
     setCustomTimes(customTimes.filter((_, i) => i !== index));
   };
 
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setValidationErrors([]); // Clear validation errors when date changes
+  };
+
   const handleSchedule = () => {
     if (!selectedVideo || !selectedDate) {
       toast.error('Please select a video and date');
+      return;
+    }
+
+    // Validate schedule times
+    const errors = validateScheduleTimes();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      toast.error(`Validation failed: ${errors[0]}`);
       return;
     }
 
