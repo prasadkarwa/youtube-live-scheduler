@@ -607,6 +607,20 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </TabsContent>
 
+          <TabsContent value="upload">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <VideoIcon className="w-5 h-5" />
+                  Upload Videos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VideoUploadPanel user={user} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="manage">
             <Card>
               <CardHeader>
