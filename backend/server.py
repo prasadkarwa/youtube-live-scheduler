@@ -708,6 +708,90 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
+@api_router.post("/test/stream")
+async def test_streaming(
+    video_id: str,
+    stream_key: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Test streaming functionality with a specific video and stream key"""
+    try:
+        logging.info(f"Testing stream for video {video_id} with stream key {stream_key}")
+        
+        # Test video URL extraction
+        video_url = await get_video_stream_url(video_id)
+        if not video_url:
+            return {"error": "Could not extract video URL", "video_id": video_id}
+        
+        logging.info(f"Extracted video URL: {video_url[:100]}...")
+        
+        # Test RTMP URL construction
+        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
+        logging.info(f"RTMP URL: {rtmp_url}")
+        
+        # Test FFmpeg command construction
+        cmd = [
+            'ffmpeg',
+            '-re',
+            '-i', video_url,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-preset', 'veryfast',
+            '-maxrate', '3000k',
+            '-bufsize', '6000k',
+            '-vf', 'scale=-2:720',
+            '-g', '50',
+            '-f', 'flv',
+            '-t', '30',  # Only stream for 30 seconds for testing
+            rtmp_url
+        ]
+        
+        logging.info(f"FFmpeg command: {' '.join(cmd)}")
+        
+        # Start FFmpeg process with detailed logging
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE
+        )
+        
+        # Wait a bit and check if process is still running
+        time.sleep(5)
+        
+        if process.poll() is None:
+            # Process is still running
+            logging.info("FFmpeg process started successfully and is running")
+            
+            # Kill the test process after checking
+            process.terminate()
+            
+            return {
+                "success": True,
+                "message": "Streaming test successful",
+                "video_url": video_url[:100] + "...",
+                "rtmp_url": rtmp_url,
+                "process_status": "started_successfully"
+            }
+        else:
+            # Process died, get error output
+            stdout, stderr = process.communicate()
+            logging.error(f"FFmpeg failed. STDOUT: {stdout.decode()}")
+            logging.error(f"FFmpeg failed. STDERR: {stderr.decode()}")
+            
+            return {
+                "success": False,
+                "error": "FFmpeg process failed",
+                "stdout": stdout.decode()[-500:],  # Last 500 chars
+                "stderr": stderr.decode()[-500:],  # Last 500 chars
+                "video_url": video_url[:100] + "...",
+                "rtmp_url": rtmp_url
+            }
+            
+    except Exception as e:
+        logging.error(f"Test streaming failed: {e}")
+        return {"error": str(e)}
+
 @api_router.get("/streaming/status")
 async def get_streaming_status(current_user: User = Depends(get_current_user)):
     """Get status of active streams"""
