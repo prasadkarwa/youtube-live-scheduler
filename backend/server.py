@@ -742,11 +742,15 @@ async def schedule_broadcast(
         user_tz = pytz.timezone("Asia/Kolkata")
         utc_tz = pytz.timezone("UTC")
         
-        # Parse the selected date (assume user local date)
+        # Parse the selected date and convert from UTC to IST for date-only operations
         selected_date_str = request.selected_date.replace('Z', '')
-        selected_date = datetime.fromisoformat(selected_date_str)
-        if selected_date.tzinfo is not None:
-            selected_date = selected_date.replace(tzinfo=None)
+        selected_date_utc = datetime.fromisoformat(selected_date_str)
+        if selected_date_utc.tzinfo is None:
+            selected_date_utc = selected_date_utc.replace(tzinfo=timezone.utc)
+        
+        # Convert to IST and get just the date part
+        selected_date_ist = selected_date_utc.astimezone(user_tz)
+        selected_date = selected_date_ist.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
         
         # Get current time in both timezones for reference
         now_utc = datetime.now(utc_tz)
