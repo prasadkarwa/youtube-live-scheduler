@@ -366,11 +366,22 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
         temp_dir = tempfile.mkdtemp()
         temp_file = os.path.join(temp_dir, f"{video_id}_{broadcast_id}.mp4")
         
-        # Download the video
+        # Download the video with more robust options
         ydl_opts = {
             'format': 'best[ext=mp4][height<=720]/best[height<=720]',
             'outtmpl': temp_file,
-            'quiet': True,
+            'quiet': False,
+            'retries': 3,
+            'fragment_retries': 3,
+            'socket_timeout': 30,
+            'http_chunk_size': 10485760,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web', 'web_safari', 'web_embedded'],
+                    'skip': ['translate'],
+                }
+            }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
