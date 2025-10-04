@@ -454,7 +454,6 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
             return
         
         # Stream the downloaded file
-        rtmp_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
         
         cmd = [
             'ffmpeg', '-y',
