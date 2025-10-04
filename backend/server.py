@@ -851,7 +851,8 @@ async def test_streaming(
                 "message": "Streaming test successful",
                 "video_url": video_url[:100] + "...",
                 "rtmp_url": rtmp_url,
-                "process_status": "started_successfully"
+                "process_status": "started_successfully",
+                "extraction_method": extraction_info
             }
         else:
             # Process died, get error output
