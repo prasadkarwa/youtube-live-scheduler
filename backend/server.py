@@ -492,8 +492,8 @@ async def schedule_broadcast(
                 minutes_from_now = time_diff.total_seconds() / 60
                 
                 # Validate scheduling constraints
-                if time_diff.total_seconds() < 900:  # 15 minutes
-                    errors.append(f"Time {time_str} IST is too soon ({int(minutes_from_now)} minutes from now). Must be at least 15 minutes in the future.")
+                if time_diff.total_seconds() < 180:  # 3 minutes (reduced for testing)
+                    errors.append(f"Time {time_str} IST is too soon ({int(minutes_from_now)} minutes from now). Must be at least 3 minutes in the future.")
                     continue
                 
                 if time_diff.days > 180:  # ~6 months
