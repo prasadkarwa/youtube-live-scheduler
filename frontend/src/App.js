@@ -818,6 +818,89 @@ const UploadedVideoScheduler = ({ video, user }) => {
   );
 };
 
+// Editable title component
+const EditableTitle = ({ video, user, onUpdate }) => {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(video.custom_title || video.original_filename);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!title.trim()) return;
+    
+    setSaving(true);
+    try {
+      await axios.put(`${API}/uploaded-videos/${video.id}/title`, 
+        { title: title.trim() },
+        { headers: { Authorization: `Bearer ${user.access_token}` }}
+      );
+      
+      toast.success('Title updated successfully');
+      setEditing(false);
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to update title:', error);
+      toast.error('Failed to update title');
+      setTitle(video.custom_title || video.original_filename); // Reset
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setTitle(video.custom_title || video.original_filename);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="text-sm"
+          disabled={saving}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') handleCancel();
+          }}
+          autoFocus
+        />
+        <Button 
+          size="sm" 
+          onClick={handleSave} 
+          disabled={saving || !title.trim()}
+        >
+          ✓
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleCancel}
+          disabled={saving}
+        >
+          ✕
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <h4 className="font-medium text-gray-900 truncate">
+        {video.custom_title || video.original_filename}
+      </h4>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setEditing(true)}
+        className="p-1 h-auto text-gray-400 hover:text-gray-600"
+      >
+        ✏️
+      </Button>
+    </div>
+  );
+};
+
 // Video upload panel
 const VideoUploadPanel = ({ user }) => {
   const [uploading, setUploading] = useState(false);
