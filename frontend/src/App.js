@@ -689,6 +689,142 @@ const Dashboard = ({ user, onLogout }) => {
   );
 };
 
+// Uploaded video scheduler component
+const UploadedVideoScheduler = ({ video, user }) => {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [customTimes, setCustomTimes] = useState(['05:55', '06:55', '07:55', '16:55', '17:55']);
+  const [showCustomTimes, setShowCustomTimes] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSchedule = async () => {
+    setLoading(true);
+    try {
+      const scheduleData = {
+        file_id: video.id,
+        selected_date: selectedDate.toISOString(),
+        custom_times: showCustomTimes ? customTimes : null
+      };
+
+      const response = await axios.post(`${API}/schedule/uploaded-video`, scheduleData, {
+        headers: { Authorization: `Bearer ${user.access_token}` }
+      });
+
+      const { success_count, error_count, errors } = response.data;
+      
+      if (success_count > 0) {
+        toast.success(`Successfully scheduled ${success_count} broadcast${success_count > 1 ? 's' : ''} for ${video.original_filename}`);
+      }
+      
+      if (error_count > 0) {
+        toast.error(`${error_count} broadcast${error_count > 1 ? 's' : ''} failed to schedule`);
+      }
+
+    } catch (error) {
+      console.error('Failed to schedule uploaded video:', error);
+      toast.error(error.response?.data?.detail || 'Failed to schedule broadcasts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-4">
+        <Label className="text-base font-medium">Select Date</Label>
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+          disabled={(date) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return date < today || date > new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+          }}
+          className="rounded-md border"
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-medium">Broadcast Times (IST)</Label>
+          <Button
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowCustomTimes(!showCustomTimes)}
+          >
+            {showCustomTimes ? 'Use Default Times' : 'Customize Times'}
+          </Button>
+        </div>
+
+        {!showCustomTimes && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600 mb-2">Default broadcast times (IST):</p>
+            <div className="flex flex-wrap gap-2">
+              {['05:55', '06:55', '07:55', '16:55', '17:55'].map((time, index) => (
+                <Badge key={index} className="bg-red-100 text-red-800">{time} IST</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showCustomTimes && (
+          <div className="space-y-3">
+            {customTimes.map((time, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  type="time"
+                  value={time}
+                  onChange={(e) => {
+                    const newTimes = [...customTimes];
+                    newTimes[index] = e.target.value;
+                    setCustomTimes(newTimes);
+                  }}
+                  className="w-32"
+                />
+                {customTimes.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCustomTimes(customTimes.filter((_, i) => i !== index))}
+                    className="p-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              onClick={() => setCustomTimes([...customTimes, '12:00'])}
+              className="w-full"
+            >
+              Add Time Slot
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Button 
+        onClick={handleSchedule}
+        disabled={loading}
+        className="w-full bg-red-600 hover:bg-red-700 text-white"
+      >
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Scheduling...
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4" />
+            Schedule Live Broadcasts
+          </div>
+        )}
+      </Button>
+    </div>
+  );
+};
+
 // Video upload panel
 const VideoUploadPanel = ({ user }) => {
   const [uploading, setUploading] = useState(false);
