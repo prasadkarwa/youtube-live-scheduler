@@ -866,7 +866,8 @@ async def test_streaming(
                 "stdout": stdout.decode()[-500:],  # Last 500 chars
                 "stderr": stderr.decode()[-500:],  # Last 500 chars
                 "video_url": video_url[:100] + "...",
-                "rtmp_url": rtmp_url
+                "rtmp_url": rtmp_url,
+                "extraction_method": extraction_info
             }
             
     except Exception as e:
