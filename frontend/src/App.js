@@ -424,7 +424,7 @@ const BroadcastsList = ({ broadcasts, onDelete, loading }) => {
                       {formatDateTime(broadcast.scheduled_time)}
                     </div>
                     <Badge variant={getBadgeVariant(broadcast.status)}>
-                      {broadcast.status}
+                      {upcoming ? 'Upcoming' : (broadcast.status === 'created' ? 'Completed' : broadcast.status)}
                     </Badge>
                   </div>
                   <div className="mt-2 flex gap-2">
