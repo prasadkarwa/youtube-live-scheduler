@@ -901,6 +901,68 @@ const EditableTitle = ({ video, user, onUpdate }) => {
   );
 };
 
+// Helper function to format bytes
+const formatBytes = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Helper function to format speed
+const formatSpeed = (bytesPerSecond) => {
+  return formatBytes(bytesPerSecond) + '/s';
+};
+
+// Helper function to estimate remaining time
+const formatTimeRemaining = (totalBytes, uploadedBytes, speed) => {
+  if (speed === 0 || uploadedBytes === 0) return 'Calculating...';
+  const remainingBytes = totalBytes - uploadedBytes;
+  const remainingSeconds = remainingBytes / speed;
+  
+  if (remainingSeconds < 60) {
+    return `${Math.round(remainingSeconds)}s remaining`;
+  } else if (remainingSeconds < 3600) {
+    return `${Math.round(remainingSeconds / 60)}m remaining`;
+  } else {
+    return `${Math.round(remainingSeconds / 3600)}h remaining`;
+  }
+};
+
+// Upload Progress Bar Component
+const UploadProgress = ({ progress, uploadedBytes, totalBytes, speed }) => {
+  return (
+    <div className="w-full space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="font-medium">Uploading...</span>
+        <span className="text-gray-600">{progress}%</span>
+      </div>
+      
+      {/* Progress Bar */}
+      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div 
+          className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-300 ease-out relative"
+          style={{ width: `${progress}%` }}
+        >
+          <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
+        </div>
+      </div>
+      
+      {/* Upload Stats */}
+      <div className="flex justify-between text-xs text-gray-600">
+        <span>{formatBytes(uploadedBytes)} / {formatBytes(totalBytes)}</span>
+        <span>{formatSpeed(speed)}</span>
+      </div>
+      
+      {/* Time Remaining */}
+      <div className="text-center text-xs text-gray-500">
+        {formatTimeRemaining(totalBytes, uploadedBytes, speed)}
+      </div>
+    </div>
+  );
+};
+
 // Video upload panel
 const VideoUploadPanel = ({ user }) => {
   const [uploading, setUploading] = useState(false);
