@@ -269,9 +269,9 @@ async def schedule_video_stream(broadcast_id: str, stream_key: str, video_id: st
             await asyncio.sleep(wait_seconds)
         
         # Get video stream URL
-        video_url = await get_video_stream_url(video_id)
+        video_url, extraction_info = await get_video_stream_url(video_id)
         if not video_url:
-            logging.error(f"Could not get video URL for {video_id}")
+            logging.error(f"Could not get video URL for {video_id}: {extraction_info}")
             return
         
         # Construct RTMP URL
