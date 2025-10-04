@@ -226,26 +226,57 @@ async def get_video_stream_url(video_id: str) -> tuple[str, str]:
 def stream_video_to_rtmp(video_url: str, rtmp_url: str, duration_seconds: int = None):
     """Stream a video to RTMP endpoint using FFmpeg"""
     try:
-        # FFmpeg command to stream video to RTMP
-        cmd = [
-            'ffmpeg',
-            '-re',  # Read input at native frame rate
-            '-i', video_url,  # Input video URL
+        # Detect if input is HLS manifest
+        is_hls = video_url.endswith('.m3u8') or 'manifest' in video_url
+        
+        # Base FFmpeg command
+        cmd = ['ffmpeg', '-y']  # -y to overwrite output
+        
+        # Input options
+        if is_hls:
+            # HLS-specific input options
+            cmd.extend([
+                '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
+                '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                '-headers', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                '-re',  # Read at native frame rate
+                '-i', video_url
+            ])
+        else:
+            # Direct video URL options
+            cmd.extend([
+                '-re',  # Read at native frame rate
+                '-i', video_url
+            ])
+        
+        # Output encoding options
+        cmd.extend([
             '-c:v', 'libx264',  # Video codec
-            '-c:a', 'aac',  # Audio codec
-            '-preset', 'ultrafast',  # Faster encoding preset
-            '-tune', 'zerolatency',  # Low latency tuning
-            '-maxrate', '2500k',  # Lower maximum bitrate
-            '-bufsize', '5000k',  # Buffer size
-            '-vf', 'scale=1280:720',  # Fixed scale to 720p
-            '-r', '30',  # Frame rate
-            '-g', '60',  # GOP size
-            '-keyint_min', '60',  # Minimum GOP size
-            '-sc_threshold', '0',  # Disable scene change detection
-            '-f', 'flv',  # Output format
-            '-flvflags', 'no_duration_filesize',  # FLV flags for live streaming
-            rtmp_url  # RTMP destination
-        ]
+            '-c:a', 'aac',      # Audio codec
+            '-preset', 'veryfast',  # Encoding preset
+            '-tune', 'zerolatency',  # Low latency
+            '-pix_fmt', 'yuv420p',  # Pixel format
+            '-maxrate', '2500k',     # Maximum bitrate
+            '-bufsize', '5000k',     # Buffer size
+            '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',  # Scale and pad
+            '-r', '30',              # Frame rate
+            '-g', '60',              # GOP size
+            '-keyint_min', '30',     # Minimum keyframe interval
+            '-sc_threshold', '0',    # Disable scene change detection
+            '-b:v', '2000k',         # Video bitrate
+            '-b:a', '128k',          # Audio bitrate
+            '-ar', '44100',          # Audio sample rate
+            '-f', 'flv',             # Output format
+            '-flvflags', 'no_duration_filesize',  # FLV flags
+        ])
+        
+        # Add duration if specified
+        if duration_seconds:
+            cmd.insert(-1, '-t')
+            cmd.insert(-1, str(duration_seconds))
+        
+        # Add RTMP destination
+        cmd.append(rtmp_url)
         
         # Add duration if specified
         if duration_seconds:
