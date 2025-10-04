@@ -629,6 +629,20 @@ const Dashboard = ({ user, onLogout }) => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="debug">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Debug Streaming
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StreamingDebugPanel user={user} />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
