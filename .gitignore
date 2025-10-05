@@ -82,3 +82,4 @@ android-sdk/ -e
 *.env
 *.env.*
 uploads/7a4a34bb-7e12-498b-97fd-74aaff06a2a5.mp4
+youtube_scheduler_deployment.tar.gz
