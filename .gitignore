@@ -88,3 +88,7 @@ youtube_scheduler_hetzner.tar.gz
 # Environment files
 *.env
 *.env.*
+-e 
+# Environment files
+*.env
+*.env.*
