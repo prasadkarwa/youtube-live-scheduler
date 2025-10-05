@@ -1112,6 +1112,15 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
+@api_router.get("/keep-alive")
+async def keep_alive():
+    """Endpoint to prevent container from sleeping"""
+    return {
+        "status": "awake", 
+        "timestamp": datetime.now(timezone.utc),
+        "message": "Container kept alive"
+    }
+
 @api_router.get("/test/youtube-access")
 async def test_youtube_access():
     """Test if we can access YouTube without authentication"""
