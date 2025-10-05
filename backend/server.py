@@ -38,7 +38,7 @@ db = client[os.environ['DB_NAME']]
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = "341627338406-3u2vrp2j80fqmom8d6dg1f7oiclfuc6q.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
-REDIRECT_URI = "https://yt-stream-planner.preview.emergentagent.com/auth/callback"
+REDIRECT_URI = "https://stream-planner-1.preview.emergentagent.com/auth/callback"
 SCOPES = [
     'https://www.googleapis.com/auth/youtube.force-ssl',
     'https://www.googleapis.com/auth/youtube'

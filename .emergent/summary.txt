@@ -1,0 +1,47 @@
+<analysis>
+The AI engineer successfully built a YouTube Live streaming scheduler application from scratch, addressing multiple complex issues iteratively. The core functionality involves uploading videos, scheduling them for specific times in IST, and streaming them automatically to YouTube Live via FFmpeg and . Key challenges overcome include robust Google OAuth integration, accurate timezone handling, YouTube API scheduling constraints,  video extraction and streaming issues (HLS manifests, SABR), and a persistent  error in MongoDB/Pydantic interactions. The application now includes user-friendly features like video upload progress, custom titles, and video management (delete/rename). The current focus is on deploying this application to a self-hosted Hetzner server using Docker and Docker Compose, where the user is encountering a frontend dependency resolution error during the build process.
+</analysis>
+
+<product_requirements>
+The primary goal is to build a web application that connects to a YouTube channel, allowing users to upload a video and schedule it as a YouTube Live stream for five predefined custom times (default: 5:55 am, 6:55 am, 7:55 am, 4:55 pm, 5:55 pm IST) on a specific day. The streams should auto-start and auto-stop, and be unlisted by default. The application needs Google OAuth login and uses user-provided Google API keys. Functionality includes deleting and renaming uploaded videos, adding custom titles (with scheduled times) to streams, and displaying an upload progress bar. The user also required the service to run 24/7 reliably, leading to a decision for self-hosting on Hetzner. For security, the application was password-protected with Jaigurudev123@.
+</product_requirements>
+
+<key_technical_concepts>
+- **FastAPI**: Python backend API.
+- **React**: JavaScript frontend framework with Shadcn UI.
+- **MongoDB**: Database for storing video and broadcast metadata.
+- **Google OAuth 2.0 & YouTube Live Streaming API**: Authentication and live stream management.
+- **FFmpeg & yt-dlp**: Video processing and streaming to RTMP.
+- **pytz**: Python library for timezone conversions (IST).
+- **Docker, Docker Compose, Nginx**: Containerization and deployment on Hetzner.
+</key_technical_concepts>
+
+<code_architecture>
+The application structure is a standard full-stack setup:
+
+
+- ****: This is the core backend file, handling Google OAuth, YouTube API interactions (scheduling, managing broadcasts), file uploads, video processing with  and , timezone conversions, and database operations. It was extensively modified to include endpoints for authentication, video management (upload, list, delete, rename), live stream scheduling, and streaming status. Also fixed  issues.
+- ****: This central React component manages the application's UI, including authentication flow, video upload with progress bar, video listing, scheduling interface (date/time selection, custom titles), and debug tools. It uses Shadcn UI components for a modern look and was heavily refactored for features, validation, and password protection.
+- ****: Modified to include  to address dependency conflicts during the Docker build process, ensuring the frontend can be containerized correctly.
+- ****: Defines the , , , and  services, orchestrating them for production deployment on Hetzner.
+
+</code_architecture>
+
+<pending_tasks>
+- User needs to update  on their Hetzner server with .
+- User needs to rebuild and restart Docker containers on Hetzner.
+- User needs to complete Certbot SSL setup on Hetzner.
+- User needs to update Google OAuth redirect URL in Google Cloud Console.
+- User needs to test the full deployed application on Hetzner.
+</pending_tasks>
+
+<current_work>
+Immediately before this summary request, the AI engineer was guiding the user through the deployment process on a Hetzner server. The application itself, a YouTube Live streaming scheduler, is feature-complete with Google OAuth, video upload (up to 2GB with progress bar), video management (rename, delete), timezone-aware scheduling (IST) of uploaded videos to YouTube Live (with auto-start/stop/unlisted settings), and password protection (). All core features have been implemented and debugged, including complex video streaming logic using FFmpeg and handling YouTube API nuances. The current point of failure is during the  command on the Hetzner server, where the  service fails to build with an Unknown command: "error"
+
+To see a list of supported npm commands, run:
+  npm help due to a dependency conflict with . The AI engineer has identified the fix (using  in the ) and provided instructions to the user.
+</current_work>
+
+<optional_next_step>
+Guide the user to apply the  fix in  on their Hetzner server and then retry building and starting the Docker containers.
+</optional_next_step>
