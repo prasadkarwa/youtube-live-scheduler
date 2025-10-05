@@ -84,3 +84,7 @@ android-sdk/ -e
 uploads/7a4a34bb-7e12-498b-97fd-74aaff06a2a5.mp4
 youtube_scheduler_deployment.tar.gz
 youtube_scheduler_hetzner.tar.gz
+-e 
+# Environment files
+*.env
+*.env.*
